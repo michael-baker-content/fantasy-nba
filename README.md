@@ -94,7 +94,7 @@ Then open:
 http://127.0.0.1:8765/web/
 ```
 
-The explorer reads the generated browser data and supports search, team, position, previous league, minimum likelihood, and sorting filters. Single-position filters are inclusive, so `F` includes `F`, `F-C`, and `G-F`; combo-position filters remain exact, so `F-C` does not include plain `F`.
+The explorer reads the generated browser data and supports search, team, position, previous league, minimum likelihood, and sorting filters. Player search is accent-insensitive and includes curated aliases such as `SGA`, `Wemby`, `Joker`, and `Greek Freak`. Single-position filters are inclusive, so `F` includes `F`, `F-C`, and `G-F`; combo-position filters remain exact, so `F-C` does not include plain `F`.
 
 The `Rank` field is saved in browser localStorage, keyed by NBA player ID. Personal ranks stay local to the browser, are kept in contiguous integer order with no gaps, and are not written back to the CSV yet.
 
@@ -123,7 +123,7 @@ The explorer includes a dark mode switch. The selected theme is saved in browser
 
 The explorer favors native HTML controls and semantic table markup. Labels are explicit, the mobile menu and export menu expose `aria-expanded`, fantasy stat sort headers expose `aria-sort`, export status messages use an `aria-live` region, and focus states use a shared Material-style focus token.
 
-The browser code keeps repeatable UI configuration in small constants, including default filters, column definitions, export fields, and fantasy empty-state display values. Local edits remain isolated behind helper functions so future storage changes can be made without rewriting the table rendering.
+The browser code keeps repeatable UI configuration in small constants, including default filters, column definitions, player search aliases, export fields, and fantasy empty-state display values. Local edits remain isolated behind helper functions so future storage changes can be made without rewriting the table rendering.
 
 If you already have a current CSV and only need to refresh the web data file, run:
 

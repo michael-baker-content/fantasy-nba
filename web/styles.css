@@ -445,7 +445,8 @@ input[type="range"] {
 }
 
 .table-wrap {
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   max-height: calc(100vh - 230px);
   border: 1px solid var(--line);
   border-radius: 16px;

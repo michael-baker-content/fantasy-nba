@@ -6,6 +6,38 @@ const EXPORT_FILE_NAME = "my_nba_rankings.csv";
 const EXPORT_FIELDS = ["rank", "name", "team", "position"];
 const EMPTY_COUNTING_STAT = "0";
 const EMPTY_PERCENTAGE_STAT = "—";
+const PLAYER_SEARCH_ALIASES = {
+  "Anthony Edwards": ["Ant", "Ant-Man"],
+  "Bam Adebayo": ["Bam"],
+  "Bogdan Bogdanovic": ["Bogi"],
+  "Bojan Bogdanovic": ["Bojan"],
+  "CJ McCollum": ["CJ"],
+  "Deandre Ayton": ["DA"],
+  "De'Aaron Fox": ["Fox"],
+  "Giannis Antetokounmpo": ["Greek Freak", "Giannis"],
+  "Ja Morant": ["Ja"],
+  "Jaren Jackson Jr.": ["JJJ"],
+  "Jaylen Brown": ["JB"],
+  "Jayson Tatum": ["JT"],
+  "Jimmy Butler": ["Jimmy Buckets"],
+  "Joel Embiid": ["JoJo"],
+  "Jonathan Kuminga": ["JK"],
+  "Kentavious Caldwell-Pope": ["KCP"],
+  "Kevin Durant": ["KD"],
+  "Kristaps Porzingis": ["KP"],
+  "LeBron James": ["LeBron", "King James"],
+  "Luka Doncic": ["Luka"],
+  "Nikola Jokic": ["Jokic", "Joker"],
+  "OG Anunoby": ["OG"],
+  "PJ Washington": ["PJ"],
+  "Robert Williams III": ["Time Lord"],
+  "Shaedon Sharpe": ["Shae"],
+  "Shai Gilgeous-Alexander": ["SGA", "Shai"],
+  "Stephen Curry": ["Steph", "Chef Curry"],
+  "Tim Hardaway Jr.": ["THJ"],
+  "Tyrese Haliburton": ["Hali"],
+  "Victor Wembanyama": ["Wemby", "Wembanyama"],
+};
 const DEFAULT_FILTERS = {
   team: "",
   position: "",
@@ -141,10 +173,28 @@ function toOptionalNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
+function normalizeSearchText(value) {
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function playerSearchAliases(playerName) {
+  return PLAYER_SEARCH_ALIASES[playerName] || [];
+}
+
+function searchablePlayerText(playerName) {
+  return normalizeSearchText([playerName, ...playerSearchAliases(playerName)].join(" "));
+}
+
 function toPlayer(row) {
+  const playerName = row.player_name;
+
   return {
     index: Number(row.index),
-    playerName: row.player_name,
+    playerName,
+    searchableText: searchablePlayerText(playerName),
     team: row.team_abbreviation,
     position: row.position,
     playerId: row.player_id,
@@ -315,7 +365,7 @@ function currentFilters() {
   const min = Number(els.minLikelihood.value);
 
   return {
-    search: els.search.value.trim().toLowerCase(),
+    search: normalizeSearchText(els.search.value.trim()),
     team: els.team.value,
     position: els.position.value,
     league: els.league.value,
@@ -424,7 +474,7 @@ function filterPlayers() {
   const filters = currentFilters();
 
   const filtered = state.players.filter((player) => {
-    const matchesSearch = player.playerName.toLowerCase().includes(filters.search);
+    const matchesSearch = player.searchableText.includes(filters.search);
     const matchesTeam = !filters.team || displayedTeam(player) === filters.team;
     const matchesPosition = matchesPositionFilter(player.position, filters.position);
     const matchesLeague = !filters.league || player.prevLeague === filters.league;
