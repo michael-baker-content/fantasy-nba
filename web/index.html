@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NBA Player Explorer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">2026-27 NBA</p>
+          <h1>Player Explorer</h1>
+        </div>
+        <div class="summary-strip" aria-live="polite">
+          <div>
+            <span id="visible-count">0</span>
+            <small>shown</small>
+          </div>
+          <div>
+            <span id="total-count">0</span>
+            <small>total</small>
+          </div>
+          <div>
+            <span id="average-likelihood">0.00</span>
+            <small>avg likelihood</small>
+          </div>
+        </div>
+      </header>
+
+      <button
+        id="mobile-menu-toggle"
+        class="mobile-menu-toggle"
+        type="button"
+        aria-controls="mobile-menu"
+        aria-expanded="false"
+      >
+        <span aria-hidden="true">&#9776;</span>
+        <span>Menu</span>
+      </button>
+
+      <nav class="view-tabs" aria-label="Explorer views">
+        <button class="view-tab is-active" type="button" data-view="players" aria-current="page">Player outlook</button>
+        <button class="view-tab" type="button" data-view="fantasy" aria-current="false">Fantasy totals</button>
+      </nav>
+
+      <section id="mobile-menu" class="filters" aria-label="Player filters">
+        <label class="field search-field">
+          <span>Search</span>
+          <input id="search-input" type="search" placeholder="Player name">
+        </label>
+
+        <label class="field">
+          <span>Team</span>
+          <select id="team-filter">
+            <option value="">All teams</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Position</span>
+          <select id="position-filter">
+            <option value="">All positions</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Previous league</span>
+          <select id="league-filter">
+            <option value="">All leagues</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Sort</span>
+          <select id="sort-select">
+            <option value="index-asc">Index</option>
+            <option value="personal-rank-asc">Rank</option>
+            <option value="likelihood-desc">Likelihood high to low</option>
+            <option value="likelihood-asc">Likelihood low to high</option>
+            <option value="name-asc">Name A to Z</option>
+            <option value="team-asc">Team A to Z</option>
+            <option value="position-asc">Position A to Z</option>
+          </select>
+        </label>
+
+        <div class="range-group" aria-label="Likelihood range">
+          <div class="range-header">
+            <span>Likelihood</span>
+            <output id="range-output">0.00 to 1.00</output>
+          </div>
+          <div class="range-controls">
+            <label>
+              <span>Min</span>
+              <input id="min-likelihood" type="range" min="0" max="1" step="0.01" value="0">
+            </label>
+            <label>
+              <span>Max</span>
+              <input id="max-likelihood" type="range" min="0" max="1" step="0.01" value="1">
+            </label>
+          </div>
+        </div>
+
+        <div class="action-buttons">
+          <button id="export-button" class="secondary-button" type="button">Export</button>
+          <button id="top-button" class="secondary-button" type="button">Top</button>
+          <button id="reset-button" class="secondary-button" type="button">Reset</button>
+        </div>
+
+        <label class="theme-toggle">
+          <span>Dark mode</span>
+          <input id="theme-toggle" type="checkbox" role="switch" aria-label="Dark mode">
+          <span class="switch-track" aria-hidden="true">
+            <span class="switch-thumb"></span>
+          </span>
+        </label>
+      </section>
+
+      <section class="table-section" aria-label="Filtered players">
+        <div id="loading-state" class="status-line">Loading players...</div>
+        <div class="table-wrap" hidden>
+          <table>
+            <thead id="players-head"></thead>
+            <tbody id="players-body"></tbody>
+          </table>
+        </div>
+        <div id="empty-state" class="status-line" hidden>No players match those filters.</div>
+      </section>
+    </main>
+
+    <script src="players-data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
