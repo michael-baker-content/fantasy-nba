@@ -138,6 +138,7 @@ Avoid repeating behavior rules across event handlers:
 - Keep view-specific behavior explicit. For example, editable team controls belong to the player outlook view, while fantasy stats stay read-focused.
 - Prefer one shared CSS custom property for repeated colors, focus rings, shadows, and design tokens.
 - Add a tiny logic test when a helper protects an important invariant, such as no-gap rank ordering.
+- Keep export field lists, filenames, and empty-state display values in named constants so file download, clipboard copy, and table rendering do not drift.
 
 ## Future Upgrade Path
 

@@ -2,13 +2,16 @@ const CSV_PATH = "../data/nba_2026_27_likely_players.csv";
 const PERSONAL_RANK_KEY = "nba-player-explorer.personal-ranks.v1";
 const TEAM_OVERRIDE_KEY = "nba-player-explorer.team-overrides.v1";
 const THEME_KEY = "nba-player-explorer.theme.v1";
+const EXPORT_FILE_NAME = "my_nba_rankings.csv";
+const EXPORT_FIELDS = ["rank", "name", "team", "position"];
+const EMPTY_COUNTING_STAT = "0";
+const EMPTY_PERCENTAGE_STAT = "—";
 const DEFAULT_FILTERS = {
   team: "",
   position: "",
   league: "",
   sort: "index-asc",
   minLikelihood: "0",
-  maxLikelihood: "1",
 };
 
 const state = {
@@ -29,6 +32,8 @@ const els = {
   loading: document.querySelector("#loading-state"),
   empty: document.querySelector("#empty-state"),
   tableWrap: document.querySelector(".table-wrap"),
+  tableScrollbar: document.querySelector(".table-scrollbar"),
+  tableScrollbarInner: document.querySelector(".table-scrollbar-inner"),
   visibleCount: document.querySelector("#visible-count"),
   totalCount: document.querySelector("#total-count"),
   averageLikelihood: document.querySelector("#average-likelihood"),
@@ -38,10 +43,13 @@ const els = {
   league: document.querySelector("#league-filter"),
   sort: document.querySelector("#sort-select"),
   minLikelihood: document.querySelector("#min-likelihood"),
-  maxLikelihood: document.querySelector("#max-likelihood"),
   rangeOutput: document.querySelector("#range-output"),
   reset: document.querySelector("#reset-button"),
   export: document.querySelector("#export-button"),
+  exportMenu: document.querySelector("#export-menu"),
+  exportFile: document.querySelector("#export-file-button"),
+  exportCopy: document.querySelector("#export-copy-button"),
+  exportStatus: document.querySelector("#export-status"),
   top: document.querySelector("#top-button"),
   themeToggle: document.querySelector("#theme-toggle"),
   mobileMenuToggle: document.querySelector("#mobile-menu-toggle"),
@@ -62,6 +70,12 @@ const fantasyColumns = [
   { key: "blk", label: "BLK", type: "number", direction: "desc" },
   { key: "tov", label: "TOV", type: "number", direction: "asc" },
 ];
+
+const fantasyStatKeys = new Set(fantasyColumns
+  .filter((column) => column.type === "number" || column.type === "percent")
+  .map((column) => column.key));
+
+let syncingTableScroll = false;
 
 const playerColumns = [
   { label: "Index", className: "col-index" },
@@ -298,12 +312,7 @@ function setupFilters() {
 }
 
 function currentFilters() {
-  let min = Number(els.minLikelihood.value);
-  let max = Number(els.maxLikelihood.value);
-
-  if (min > max) {
-    [min, max] = [max, min];
-  }
+  const min = Number(els.minLikelihood.value);
 
   return {
     search: els.search.value.trim().toLowerCase(),
@@ -312,8 +321,20 @@ function currentFilters() {
     league: els.league.value,
     sort: els.sort.value,
     min,
-    max,
+    max: 1,
   };
+}
+
+function matchesPositionFilter(playerPosition, selectedPosition) {
+  if (!selectedPosition) {
+    return true;
+  }
+
+  if (selectedPosition.includes("-")) {
+    return playerPosition === selectedPosition;
+  }
+
+  return playerPosition.split("-").includes(selectedPosition);
 }
 
 function sortPlayers(players, sortKey) {
@@ -369,6 +390,10 @@ function fantasyValue(player, key) {
   return player.fantasy[key];
 }
 
+function hasFantasyData(player) {
+  return Object.values(player.fantasy).some((value) => Number.isFinite(value));
+}
+
 function sortFantasyPlayers(players) {
   const sorted = [...players];
   const { key, direction } = state.fantasySort;
@@ -401,7 +426,7 @@ function filterPlayers() {
   const filtered = state.players.filter((player) => {
     const matchesSearch = player.playerName.toLowerCase().includes(filters.search);
     const matchesTeam = !filters.team || displayedTeam(player) === filters.team;
-    const matchesPosition = !filters.position || player.position === filters.position;
+    const matchesPosition = matchesPositionFilter(player.position, filters.position);
     const matchesLeague = !filters.league || player.prevLeague === filters.league;
     const matchesLikelihood =
       player.activeLikelihood >= filters.min && player.activeLikelihood <= filters.max;
@@ -516,6 +541,7 @@ function playerRow(player) {
 
 function fantasyRow(player) {
   const tr = document.createElement("tr");
+  const playerHasFantasyData = hasFantasyData(player);
 
   fantasyColumns.forEach((column) => {
     if (column.type === "personalRank") {
@@ -529,7 +555,11 @@ function fantasyRow(player) {
 
     appendTextCell(
       tr,
-      formatFantasyValue(fantasyValue(player, column.key), column.type),
+      formatFantasyValue(
+        fantasyValue(player, column.key),
+        column.type,
+        playerHasFantasyData && fantasyStatKeys.has(column.key),
+      ),
       [column.className, column.type === "text" ? "" : "number-cell"].filter(Boolean).join(" "),
     );
   });
@@ -537,9 +567,13 @@ function fantasyRow(player) {
   return tr;
 }
 
-function formatFantasyValue(value, type) {
+function formatFantasyValue(value, type, fillEmptyFantasyStat = false) {
   if (value === null || value === undefined || value === "") {
-    return "";
+    if (!fillEmptyFantasyStat) {
+      return "";
+    }
+
+    return type === "percent" ? EMPTY_PERCENTAGE_STAT : EMPTY_COUNTING_STAT;
   }
   if (type === "percent") {
     return Number(value).toFixed(3);
@@ -622,12 +656,36 @@ function renderTable() {
   }
 
   els.tableWrap.hidden = state.filtered.length === 0;
+  els.tableScrollbar.hidden = state.filtered.length === 0;
   els.empty.hidden = state.filtered.length !== 0;
+  requestAnimationFrame(updateTableScrollbar);
+}
+
+function updateTableScrollbar() {
+  const table = els.tableWrap.querySelector("table");
+  if (!table || els.tableWrap.hidden) {
+    return;
+  }
+
+  els.tableScrollbarInner.style.width = `${table.scrollWidth}px`;
+  els.tableScrollbar.scrollLeft = els.tableWrap.scrollLeft;
+}
+
+function syncHorizontalScroll(source, target) {
+  if (syncingTableScroll) {
+    return;
+  }
+
+  syncingTableScroll = true;
+  target.scrollLeft = source.scrollLeft;
+  requestAnimationFrame(() => {
+    syncingTableScroll = false;
+  });
 }
 
 function renderRangeLabel() {
-  const { min, max } = currentFilters();
-  els.rangeOutput.textContent = `${min.toFixed(2)} to ${max.toFixed(2)}`;
+  const { min } = currentFilters();
+  els.rangeOutput.textContent = `${min.toFixed(2)} and up`;
 }
 
 function applyFilters() {
@@ -644,7 +702,6 @@ function resetFilters() {
   els.league.value = DEFAULT_FILTERS.league;
   els.sort.value = DEFAULT_FILTERS.sort;
   els.minLikelihood.value = DEFAULT_FILTERS.minLikelihood;
-  els.maxLikelihood.value = DEFAULT_FILTERS.maxLikelihood;
   applyFilters();
 }
 
@@ -656,6 +713,7 @@ function closeMobileMenu() {
 function scrollResultsToTop() {
   closeMobileMenu();
   els.tableWrap.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  els.tableScrollbar.scrollTo({ left: 0, behavior: "smooth" });
   document.querySelector(".table-section").scrollIntoView({
     behavior: "smooth",
     block: "start",
@@ -679,23 +737,82 @@ function rankedExportRows() {
     .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
 }
 
-function exportRankedCsv() {
+function rankedExportCsv() {
   const rows = rankedExportRows();
-  const header = ["rank", "name", "team", "position"];
-  const csv = [
-    header.join(","),
-    ...rows.map((row) => header.map((field) => csvValue(row[field])).join(",")),
+  return [
+    EXPORT_FIELDS.join(","),
+    ...rows.map((row) => EXPORT_FIELDS.map((field) => csvValue(row[field])).join(",")),
   ].join("\r\n");
+}
+
+function setExportStatus(message) {
+  els.exportStatus.textContent = message;
+}
+
+function setExportMenuOpen(isOpen, focusFirstItem = false) {
+  els.export.setAttribute("aria-expanded", String(isOpen));
+  els.exportMenu.hidden = !isOpen;
+
+  if (isOpen && focusFirstItem) {
+    requestAnimationFrame(() => els.exportFile.focus());
+  }
+}
+
+function toggleExportMenu() {
+  setExportMenuOpen(els.exportMenu.hidden, true);
+}
+
+function closeExportMenu() {
+  setExportMenuOpen(false);
+}
+
+function downloadRankedCsv() {
+  const csv = rankedExportCsv();
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
 
   link.href = url;
-  link.download = "my_nba_rankings.csv";
+  link.download = EXPORT_FILE_NAME;
   document.body.append(link);
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+  setExportStatus("CSV file exported.");
+  closeExportMenu();
+}
+
+function copyTextFallback(text) {
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.position = "fixed";
+  textarea.style.top = "-9999px";
+  document.body.append(textarea);
+  textarea.select();
+
+  try {
+    document.execCommand("copy");
+  } finally {
+    textarea.remove();
+  }
+}
+
+async function copyRankedCsvToClipboard() {
+  const csv = rankedExportCsv();
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(csv);
+    } else {
+      copyTextFallback(csv);
+    }
+    setExportStatus("CSV copied to clipboard.");
+  } catch {
+    setExportStatus("CSV could not be copied.");
+  } finally {
+    closeExportMenu();
+  }
 }
 
 function bindEvents() {
@@ -706,12 +823,20 @@ function bindEvents() {
     els.league,
     els.sort,
     els.minLikelihood,
-    els.maxLikelihood,
   ].forEach((control) => control.addEventListener("input", applyFilters));
 
   els.reset.addEventListener("click", resetFilters);
-  els.export.addEventListener("click", exportRankedCsv);
+  els.export.addEventListener("click", toggleExportMenu);
+  els.exportFile.addEventListener("click", downloadRankedCsv);
+  els.exportCopy.addEventListener("click", copyRankedCsvToClipboard);
   els.top.addEventListener("click", scrollResultsToTop);
+  els.tableWrap.addEventListener("scroll", () => {
+    syncHorizontalScroll(els.tableWrap, els.tableScrollbar);
+  });
+  els.tableScrollbar.addEventListener("scroll", () => {
+    syncHorizontalScroll(els.tableScrollbar, els.tableWrap);
+  });
+  window.addEventListener("resize", updateTableScrollbar);
   els.themeToggle.addEventListener("change", () => {
     const theme = els.themeToggle.checked ? "dark" : "light";
     applyTheme(theme);
@@ -720,6 +845,17 @@ function bindEvents() {
   els.mobileMenuToggle.addEventListener("click", () => {
     const isOpen = document.body.classList.toggle("mobile-menu-open");
     els.mobileMenuToggle.setAttribute("aria-expanded", String(isOpen));
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".export-menu")) {
+      closeExportMenu();
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !els.exportMenu.hidden) {
+      closeExportMenu();
+      els.export.focus();
+    }
   });
 
   els.body.addEventListener("change", (event) => {

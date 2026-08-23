@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>NBA Player Explorer</title>
+    <title>NBA Player Ranker</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
@@ -14,7 +14,7 @@
       <header class="app-header">
         <div>
           <p class="eyebrow">2026-27 NBA</p>
-          <h1>Player Explorer</h1>
+          <h1>NBA Player Ranker</h1>
         </div>
         <div class="summary-strip" aria-live="polite">
           <div>
@@ -88,27 +88,39 @@
           </select>
         </label>
 
-        <div class="range-group" aria-label="Likelihood range">
+        <div class="range-group" aria-label="Minimum likelihood">
           <div class="range-header">
             <span>Likelihood</span>
-            <output id="range-output">0.00 to 1.00</output>
+            <output id="range-output">0.00 and up</output>
           </div>
           <div class="range-controls">
             <label>
-              <span>Min</span>
+              <span>Minimum</span>
               <input id="min-likelihood" type="range" min="0" max="1" step="0.01" value="0">
-            </label>
-            <label>
-              <span>Max</span>
-              <input id="max-likelihood" type="range" min="0" max="1" step="0.01" value="1">
             </label>
           </div>
         </div>
 
         <div class="action-buttons">
-          <button id="export-button" class="secondary-button" type="button">Export</button>
+          <div class="export-menu">
+            <button
+              id="export-button"
+              class="secondary-button"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="export-menu"
+            >
+              Export
+            </button>
+            <div id="export-menu" class="export-options" role="menu" hidden>
+              <button id="export-file-button" type="button" role="menuitem">CSV file</button>
+              <button id="export-copy-button" type="button" role="menuitem">CSV to clipboard</button>
+            </div>
+          </div>
           <button id="top-button" class="secondary-button" type="button">Top</button>
           <button id="reset-button" class="secondary-button" type="button">Reset</button>
+          <span id="export-status" class="sr-only" aria-live="polite"></span>
         </div>
 
         <label class="theme-toggle">
@@ -127,6 +139,9 @@
             <thead id="players-head"></thead>
             <tbody id="players-body"></tbody>
           </table>
+        </div>
+        <div class="table-scrollbar" aria-label="Scroll table columns" role="region" tabindex="0" hidden>
+          <div class="table-scrollbar-inner"></div>
         </div>
         <div id="empty-state" class="status-line" hidden>No players match those filters.</div>
       </section>

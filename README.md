@@ -94,13 +94,13 @@ Then open:
 http://127.0.0.1:8765/web/
 ```
 
-The explorer reads the generated browser data and supports search, team, position, previous league, likelihood range, and sorting filters.
+The explorer reads the generated browser data and supports search, team, position, previous league, minimum likelihood, and sorting filters. Single-position filters are inclusive, so `F` includes `F`, `F-C`, and `G-F`; combo-position filters remain exact, so `F-C` does not include plain `F`.
 
 The `Rank` field is saved in browser localStorage, keyed by NBA player ID. Personal ranks stay local to the browser, are kept in contiguous integer order with no gaps, and are not written back to the CSV yet.
 
 Team edits in the player outlook view are also saved in browser localStorage, keyed by NBA player ID. The original CSV team remains the default, and switching a player back to that default removes the override.
 
-The `Export` button downloads ranked players only, sorted by `Rank`, with the fields `rank`, `name`, `team`, and `position`. Exported team values use localStorage team edits. The `Top` button scrolls the current filtered and sorted result set back to the top without changing view state.
+The `Export` button offers either a CSV file download or CSV copy-to-clipboard. Both options include ranked players only, sorted by `Rank`, with the fields `rank`, `name`, `team`, and `position`. Exported team values use localStorage team edits. The `Top` button scrolls the current filtered and sorted result set back to the top without changing view state.
 
 The generator also writes `web/players-data.js`, so the explorer can be opened directly from `web/index.html` if the local server is inconvenient.
 
@@ -109,15 +109,21 @@ The explorer has two views:
 - `Player outlook`: the main player universe with active likelihood and team context.
 - `Fantasy totals`: prior-season fantasy totals, including FG%, FT%, 3PM, points, rebounds, assists, steals, blocks, and turnovers. FG/FT makes and attempts are stored in browser data for later use but are not displayed.
 
-The mobile layout is tuned against an iPhone 15-sized viewport. On narrow screens, player search and results are visible by default, while views, filters, likelihood controls, export, top, and reset move into a slide-down menu. The mobile player outlook table keeps the index column as a compact `#` cue for default sorting but hides the index values to save space.
+In the fantasy totals view, players with no prior-season stat data keep fantasy fields blank. If a player has any fantasy stat data, missing counting stats display as `0` and missing percentage fields display as an em dash.
+
+The responsive layout has desktop, laptop, tablet, and mobile treatments. Desktop uses a 1280px max-width shell with filters arranged to fit that width cleanly, placing Sort, minimum Likelihood, and action buttons together on the second filter row. Laptop view uses a four-column filter grid with actions and dark mode sharing the third row to avoid stranded empty space. Tablet uses a two-column filter layout with Sort and Likelihood paired when space allows. On narrow mobile screens, player search and results are visible by default, while views, filters, the likelihood slider, export, top, reset, and dark mode move into a slide-down menu. The mobile player outlook table keeps the index column as a compact `#` cue for default sorting but hides the index values to save space.
+
+Wide tables include a sticky horizontal scrollbar beneath the visible results so columns can be scrolled left and right without jumping to the final row. The `Rank` and `Player` columns stay pinned while scrolling horizontally, and the fantasy totals view uses a tighter Player column to leave more room for stat categories.
+
+The visual style uses Roboto for the interface and Bungee for the `NBA Player Ranker` heading, with Roboto as a fallback. The heading uses a basketball-orange `#F88158` outline with a red fill in both light and dark modes.
 
 The explorer includes a dark mode switch. The selected theme is saved in browser localStorage and applies only to that browser.
 
 ## Accessibility and Maintainability
 
-The explorer favors native HTML controls and semantic table markup. Labels are explicit, the mobile menu exposes `aria-expanded`, fantasy stat sort headers expose `aria-sort`, and focus states use a shared Material-style focus token.
+The explorer favors native HTML controls and semantic table markup. Labels are explicit, the mobile menu and export menu expose `aria-expanded`, fantasy stat sort headers expose `aria-sort`, export status messages use an `aria-live` region, and focus states use a shared Material-style focus token.
 
-The browser code keeps repeatable UI configuration in small constants, including default filters and column definitions. Local edits remain isolated behind helper functions so future storage changes can be made without rewriting the table rendering.
+The browser code keeps repeatable UI configuration in small constants, including default filters, column definitions, export fields, and fantasy empty-state display values. Local edits remain isolated behind helper functions so future storage changes can be made without rewriting the table rendering.
 
 If you already have a current CSV and only need to refresh the web data file, run:
 
@@ -187,6 +193,6 @@ This project now includes:
 - A clean player CSV with active likelihood and ranked index.
 - A review CSV with scoring inputs and audit fields.
 - Manual override files for previous league, likelihood, and extra free agents.
-- A static web explorer with filters, sorting, likelihood range, and local personal ranks.
+- A static web explorer with filters, sorting, a minimum likelihood slider, and local personal ranks.
 - A Material-inspired responsive UI using Roboto, native controls, and accessible table states.
 - A no-network sync script for refreshing browser data from the generated CSV.
