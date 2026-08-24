@@ -1,10 +1,63 @@
-# Basketball Player CSV
+# NBA Player Ranker
 
-This project builds a CSV of players likely to play in the 2026-27 NBA season.
+NBA Player Ranker is a lightweight fantasy basketball ranking tool. It starts with a generated player list, lets each user add personal ranks in the browser, and exports a clean draft-ready file.
 
 For a reusable playbook based on this project, see [SKILLS.md](SKILLS.md).
 
-The generated file is:
+## Using the Site
+
+Open the site, search or filter the player list, then enter numbers in the `Rank` column. Ranks are saved in your browser and automatically stay in order with no gaps. If you enter `1` for a player, the existing ranks shift down; if you delete a rank, the ranks below it shift up.
+
+The fastest workflow is:
+
+1. Use `Seed` to autopopulate rankings from the default index.
+2. Adjust the players you personally value differently.
+3. Use `Export` to save or copy your rankings.
+
+A lazy but useful workflow is even shorter: click `Seed`, enter the number of players your league will use, and immediately export. For example, a 12-team league drafting 13 players per team could seed `156` ranks, then export without filling every rank by hand.
+
+The `Export` menu includes:
+
+- `CSV File`: exports only ranked players with `rank`, `name`, `team`, and `position`.
+- `CSV To Clipboard`: copies that same simple ranked list.
+- `Full CSV`, `Full XLSX`, and `Full JSON`: export the current filtered and sorted result set with the extra player, team, fantasy, and identity fields available in the app.
+
+Use `Reset` when you want to turn back the clock. `Reset Sorts` returns the sort order to the default for the current view. `Delete Saved Data` removes saved ranks, team edits, and theme preference from this browser.
+
+The app has two views:
+
+- `Player Info`: player rank, team, position, age, height, background, country, draft, and Experience context.
+- `Fantasy Stats`: prior-season fantasy totals, including FG%, FT%, 3PM, points, rebounds, assists, steals, blocks, and turnovers.
+
+Player search is accent-insensitive and includes curated aliases such as `SGA`, `Wemby`, `Joker`, and `Greek Freak`. Single-position filters are inclusive, so `F` includes `F`, `F-C`, and `G-F`; combo-position filters remain exact, so `F-C` does not include plain `F`.
+
+Team edits in the Player Info view are saved in browser localStorage. The original data remains the default, and switching a player back to that default removes the override. Personal ranks, team edits, and dark mode are private to each browser.
+
+## Basic Installation
+
+Clone the repo, then from the project folder run a local static server:
+
+```powershell
+python scripts/serve_web.py
+```
+
+Open:
+
+```text
+http://127.0.0.1:8765/web/
+```
+
+The root `index.html` redirects to `web/`, so the app can also be hosted directly from GitHub Pages.
+
+To run the lightweight checks:
+
+```powershell
+node scripts/test_all.js
+```
+
+## Data Files
+
+The main generated player file is:
 
 ```text
 data/nba_2026_27_likely_players.csv
@@ -16,24 +69,46 @@ The generator also writes a review file:
 data/nba_2026_27_likely_players_review.csv
 ```
 
-Columns:
+The browser reads:
+
+```text
+web/players-data.js
+```
+
+Optional player biography data is cached separately:
+
+```text
+data/player_bios.csv
+```
+
+The main player CSV columns are:
 
 ```text
 index,player_name,team_abbreviation,position,player_id,experience,active_likelihood,fantasy_*
 ```
 
-The `fantasy_*` columns include prior-season raw fantasy totals and stored FG/FT made-attempted inputs used by the web explorer.
+The `fantasy_*` columns include prior-season raw fantasy totals and stored FG/FT made-attempted inputs used by the web explorer. The `active_likelihood` field remains in the data pipeline for later use, but likelihood is currently hidden from the site to avoid confusion while that score is still being refined.
 
-## How to Generate
+## Refreshing Web Data
 
-From this folder:
+If the local CSV files are current and you only need to refresh the browser data file, run:
+
+```powershell
+python scripts/sync_web_data.py
+```
+
+The sync script preserves existing fantasy fields from `web/players-data.js` and merges optional fields from `data/player_bios.csv` when available.
+
+## Generating Player Data
+
+Create a Python environment and install dependencies:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt
 ```
 
-Then:
+Then run:
 
 ```powershell
 .\.venv\Scripts\python scripts/generate_nba_players.py
@@ -41,22 +116,41 @@ Then:
 
 The script uses the maintained `nba_api` package, which reads NBA.com/stats data and preserves NBA.com/stats player IDs.
 
+To refresh the optional Player Info biography cache:
+
+```powershell
+.\.venv\Scripts\python scripts/fetch_player_bios.py
+python scripts/sync_web_data.py
+```
+
+The bio script fills height, background, country, and draft fields from the season player index, then fetches birthdate and age from individual player profiles. NBA.com/stats can be touchy, so smaller batches are often more reliable:
+
+```powershell
+.\.venv\Scripts\python scripts/fetch_player_bios.py --limit 25 --sleep 0.5
+python scripts/sync_web_data.py
+```
+
 ## Manual Inputs
 
 Three optional CSV files live in `data/`:
 
-- `experience_overrides.csv`: use this when a player's experience value should be forced to `Veteran` or `Rookie`.
-- `active_likelihood_overrides.csv`: use this when news, injury context, or roster knowledge should override the automatic likelihood score.
-- `free_agents.csv`: use this to include additional unsigned players who are still plausible NBA players. Use `NA` (`Not Available`) for players whose team is not available.
+- `experience_overrides.csv`: force a player's Experience value to `Veteran` or `Rookie`.
+- `active_likelihood_overrides.csv`: override the hidden likelihood score when news, injuries, or roster context matter.
+- `free_agents.csv`: include additional unsigned players who are still plausible NBA players. Use `NA` (`Not Available`) for players whose team is not available.
 
 The script also automatically adds free-agent candidates when a player appeared in the previous season's NBA stats feed, is not on the upcoming-season roster feed, and clears a modest recent-playing-time threshold.
 
-For players who were already in the NBA last season, `experience` is `Veteran`.
-For incoming players with no known professional history, `experience` defaults to `Rookie`.
+For players who were already in the NBA last season, `experience` is `Veteran`. For incoming players with no known professional history, `experience` defaults to `Rookie`.
+
+## Index Ranking
+
+The `index` field is assigned after sorting by an internal ranking score. The score combines active likelihood with prior-season production and Net Rating (`NET_RATING`) compared with the prior-season league average.
+
+The Net Rating adjustment is weighted by playing-time sample so small-minute outliers have less influence. The review CSV includes `index_score`, `previous_netrtg`, `netrtg_delta`, and `netrtg_sample_weight` for auditing.
 
 ## Active Likelihood
 
-`active_likelihood` is a 0 to 1 estimate of how likely the player is to be active for at least one NBA game in the upcoming season.
+`active_likelihood` is a hidden 0 to 1 estimate of how likely the player is to be active for at least one NBA game in the upcoming season.
 
 The automatic score uses:
 
@@ -74,74 +168,19 @@ Examples:
 
 The review CSV includes supporting fields such as `roster_bucket`, `likelihood_reason`, prior-season games/minutes/points/rebounds/assists, draft slot, and supplemental status.
 
-## Index Ranking
+## Interface Notes
 
-The `index` field is assigned after sorting by an internal ranking score. The score combines active likelihood with prior-season production and Net Rating (`NET_RATING`) compared with the prior-season league average.
+The responsive layout has desktop, laptop, tablet, and mobile treatments. On narrow mobile screens, the first row keeps `Menu`, `Info / Stats`, and dark mode available, while player search and results remain visible by default. Additional filters, export, top, reset, and seed controls live in the slide-down menu.
 
-The Net Rating adjustment is weighted by playing-time sample so small-minute outliers have less influence. The review CSV includes `index_score`, `previous_netrtg`, `netrtg_delta`, and `netrtg_sample_weight` for auditing.
-
-## Web Explorer
-
-Run the local read-only explorer from this folder:
-
-```powershell
-python scripts/serve_web.py
-```
-
-Then open:
-
-```text
-http://127.0.0.1:8765/web/
-```
-
-The explorer reads the generated browser data and supports search, team, position, Experience, minimum likelihood, and sorting filters. Experience uses `Veteran` or `Rookie`, with `Default` showing both. Player search is accent-insensitive and includes curated aliases such as `SGA`, `Wemby`, `Joker`, and `Greek Freak`. The Sort dropdown changes by view: Player outlook shows roster-oriented sorts with A-to-Z and Z-to-A text options, while Fantasy totals shows fantasy stat categories with both sort directions. Single-position filters are inclusive, so `F` includes `F`, `F-C`, and `G-F`; combo-position filters remain exact, so `F-C` does not include plain `F`.
-
-The `Rank` field is saved in browser localStorage, keyed by NBA player ID. Personal ranks stay local to the browser, are kept in contiguous integer order with no gaps, and are not written back to the CSV yet. The `Seed` button can fill empty ranks through a chosen target number using the default index order while preserving ranks already entered.
-
-Team edits in the player outlook view are also saved in browser localStorage, keyed by NBA player ID. The original CSV team remains the default, and switching a player back to that default removes the override.
-
-The `Export` button offers rank-only CSV file download, rank-only CSV copy-to-clipboard, full CSV, full XLSX, and full JSON. The rank-only options include ranked players only, sorted by `Rank`, with the fields `rank`, `name`, `team`, and `position`. The full exports include the current filtered and sorted result set with saved `Rank`, edited `Team`, original team, player identity fields, likelihood, Experience, and fantasy stat fields. Exported team values use localStorage team edits. The `Top` button scrolls the current filtered and sorted result set back to the top without changing view state.
-
-The generator also writes `web/players-data.js`, so the explorer can be opened directly from `web/index.html` if the local server is inconvenient.
-
-The explorer has two views:
-
-- `Player outlook`: the main player universe with active likelihood and team context.
-- `Fantasy totals`: prior-season fantasy totals by player and team, including FG%, FT%, 3PM, points, rebounds, assists, steals, blocks, and turnovers. FG/FT makes and attempts are stored in browser data for later use but are not displayed.
-
-In the fantasy totals view, players with no prior-season stat data keep fantasy fields blank. If a player has any fantasy stat data, missing counting stats display as `0` and missing percentage fields display as an em dash.
-
-The responsive layout has desktop, laptop, tablet, and mobile treatments. Desktop uses a 1280px max-width shell with filters arranged to fit that width cleanly, placing Sort, minimum Likelihood, and action buttons together on the second filter row. Laptop view uses a four-column filter grid with actions using the available row space to avoid stranded empty space. Tablet uses a two-column filter layout with Sort and Likelihood paired when space allows. On narrow mobile screens, player search and results are visible by default, while views, filters, the likelihood slider, export, top, reset, and seed controls move into a slide-down menu. The theme toggle stays in the top menu row on the right. The mobile player outlook table keeps the index column as a compact `#` cue for default sorting but hides the index values to save space.
-
-Wide tables include a sticky horizontal scrollbar beneath the visible results so columns can be scrolled left and right without jumping to the final row. Both table views also support touch-drag horizontal scrolling directly on the table area, including the mobile Fantasy totals view. The `Rank` and `Player` columns stay pinned while scrolling horizontally, and the fantasy totals view uses a tighter Player column to leave more room for stat categories.
+Wide tables include a sticky horizontal scrollbar beneath the visible results so columns can be scrolled left and right without jumping to the final row. Both table views also support touch-drag horizontal scrolling directly on the table area. The `Rank` and `Player` columns stay pinned while scrolling horizontally.
 
 The visual style uses Roboto for the interface and Bungee for the `NBA Player Ranker` heading, with Roboto as a fallback. The heading uses a basketball-orange `#F88158` outline with a red fill in both light and dark modes.
-
-The explorer includes a dark mode switch. The selected theme is saved in browser localStorage and applies only to that browser.
 
 ## Accessibility and Maintainability
 
 The explorer favors native HTML controls and semantic table markup. Labels are explicit, the mobile menu and export menu expose `aria-expanded`, fantasy stat sort headers expose `aria-sort`, export status messages use an `aria-live` region, and focus states use a shared Material-style focus token.
 
-The browser code keeps repeatable UI configuration in small constants, including default filters, column definitions, player search aliases, export fields, and fantasy empty-state display values. Pure browser logic lives in `web/app-logic.js` so rank updates, search matching, sorting, fantasy display, and export row construction can be reused by both the app and the Node test scripts. Local edits remain isolated behind helper functions so future storage changes can be made without rewriting the table rendering.
-
-## Tests
-
-Run the lightweight JavaScript checks with:
-
-```powershell
-node scripts/test_all.js
-```
-
-The tests cover personal rank sequencing, search/position/experience helpers, fantasy empty-state formatting, player/fantasy sorting, and CSV/full export row construction. They do not require network access.
-
-If you already have a current CSV and only need to refresh the web data file, run:
-
-```powershell
-python scripts/sync_web_data.py
-```
-
-The sync script preserves existing fantasy fields from `web/players-data.js` when it refreshes from the clean CSV.
+The browser code keeps repeatable UI configuration in small constants, including default filters, column definitions, player search aliases, export fields, and fantasy empty-state display values. Pure browser logic lives in `web/app-logic.js` so rank updates, search matching, sorting, fantasy display, and export row construction can be reused by both the app and the Node test scripts.
 
 ## GitHub Pages
 
@@ -153,13 +192,7 @@ Before committing, make sure the browser data file is current:
 python scripts/sync_web_data.py
 ```
 
-Or, if you want to refresh from NBA.com/stats first:
-
-```powershell
-.\.venv\Scripts\python scripts/generate_nba_players.py
-```
-
-Then commit these static site files:
+Then commit the static site files, including:
 
 ```text
 index.html
@@ -167,6 +200,7 @@ index.html
 web/index.html
 web/styles.css
 web/app.js
+web/app-logic.js
 web/players-data.js
 ```
 
@@ -179,30 +213,4 @@ In GitHub:
 5. Set the folder to `/ (root)`.
 6. Save.
 
-The root page redirects to `web/`, and the explorer runs fully in the browser. Personal ranks and team edits use each visitor's browser localStorage, so they are private to that browser and are not shared through GitHub.
-
-## Local Git Setup
-
-This folder is prepared as a local git repository on the `main` branch. To publish it yourself:
-
-```powershell
-git status
-git remote add origin https://github.com/YOUR-USER/YOUR-REPO.git
-git push -u origin main
-```
-
-After pushing, enable GitHub Pages from the repository root as described above.
-
 The generated CSV files in `data/` are ignored by git, while `web/players-data.js` is committed for the static site. This lets GitHub Pages run without a live NBA API call.
-
-## Progress So Far
-
-This project now includes:
-
-- A repeatable NBA.com/stats data pipeline through `nba_api`.
-- A clean player CSV with active likelihood and ranked index.
-- A review CSV with scoring inputs and audit fields.
-- Manual override files for Experience, likelihood, and extra not-available players.
-- A static web explorer with filters, sorting, a minimum likelihood slider, and local personal ranks.
-- A Material-inspired responsive UI using Roboto, native controls, and accessible table states.
-- A no-network sync script for refreshing browser data from the generated CSV.

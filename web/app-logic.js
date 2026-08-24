@@ -152,10 +152,6 @@
     const sorters = {
       "index-asc": (a, b) => a.index - b.index,
       "personal-rank-asc": (a, b) => comparePersonalRank(a, b, helpers.personalRank),
-      "likelihood-desc": (a, b) =>
-        b.activeLikelihood - a.activeLikelihood || a.playerName.localeCompare(b.playerName),
-      "likelihood-asc": (a, b) =>
-        a.activeLikelihood - b.activeLikelihood || a.playerName.localeCompare(b.playerName),
       "name-asc": byText("playerName"),
       "name-desc": (a, b) => byText("playerName")(b, a),
       "team-asc": (a, b) =>
@@ -266,7 +262,14 @@
       position: player.position,
       nba_player_id: player.playerId,
       experience: experienceLabel(player.experience),
-      active_likelihood: player.activeLikelihood,
+      age: player.age ?? "",
+      birthdate: player.birthdate ?? "",
+      height: player.height ?? "",
+      college: player.college ?? "",
+      country: player.country ?? "",
+      draft_year: player.draftYear ?? "",
+      draft_round: player.draftRound ?? "",
+      draft_number: player.draftNumber ?? "",
       fantasy_fg_pct: player.fantasy.fgPct ?? "",
       fantasy_fgm: player.fantasy.fgm ?? "",
       fantasy_fga: player.fantasy.fga ?? "",

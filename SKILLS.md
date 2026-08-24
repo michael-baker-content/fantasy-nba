@@ -35,7 +35,8 @@ Separate the pipeline into clear stages:
 6. Sort rows by the project ranking.
 7. Write the main CSV.
 8. Write a review CSV with scoring ingredients.
-9. Write browser-ready data for the web UI.
+9. Write optional enrichment caches for slower detail fields.
+10. Write browser-ready data for the web UI.
 
 The main CSV should stay clean and user-facing. Put supporting fields, reasons, raw statistics, and debug values in a separate review CSV.
 
@@ -51,14 +52,16 @@ When a public API is flaky or slow:
 
 For this project, `nba_api` is the data client, while `scripts/sync_web_data.py` can refresh `web/players-data.js` from the local CSV without touching the network.
 
+When a detail endpoint is slower than the main list endpoint, cache it separately. In this project, `scripts/fetch_player_bios.py` writes `data/player_bios.csv`: most bio fields come from the season player index, while birthdate and age are fetched from individual profile endpoints and can be filled progressively with `--limit`.
+
 ## Scoring and Ranking
 
 Use two different concepts when needed:
 
-- Likelihood: a probability-like estimate from `0` to `1`.
-- Index ranking: an ordering score that can combine likelihood with quality, role, or production.
+- Hidden scoring ingredients: probability-like or model-like values that help generate a default order but are not necessarily ready for users.
+- Index ranking: the default ordering users see first, which can combine availability, quality, role, or production.
 
-Keep score formulas auditable. Save the score inputs in the review CSV so a surprising rank can be explained without rereading the code.
+Keep score formulas auditable even when the score is not shown in the UI. Save the score inputs in the review CSV so a surprising rank can be explained without rereading the code.
 
 Useful ranking safeguards:
 
@@ -67,7 +70,7 @@ Useful ranking safeguards:
 - Cap or dampen developmental/supplemental players.
 - Use manual overrides for news, injuries, and context that raw stats cannot know.
 
-In this project, the index ranking combines active likelihood, prior-season production, Net Rating compared with league average, and a playing-time sample weight.
+In this project, the index ranking combines hidden active likelihood, prior-season production, Net Rating compared with league average, and a playing-time sample weight. The likelihood value remains in the pipeline for future refinement but is intentionally hidden from the site until it is more trustworthy.
 
 ## Manual Override Files
 
@@ -85,22 +88,26 @@ Design overrides so they are easy to edit by hand:
 - Include the player name for readability.
 - Include only the field being overridden.
 
+Keep enrichment caches separate from manual override files. A cache like `data/player_bios.csv` should be regenerable from source data and safe to refresh, while override files should represent intentional human judgment.
+
 ## Web Explorer Pattern
 
 For an MVP explorer, build the real work surface first:
 
 - Search.
 - Filters for important categorical fields.
-- Numeric range filters for scores.
 - Sort options that match the project workflow.
 - A dense table that stays readable.
-- Summary counts that update with filters.
+- Fast personal annotation controls.
+- Export paths that match the user's next real task.
 
-Avoid adding editing, export, authentication, or database storage until there is a concrete need.
+Avoid adding authentication, database storage, or large edit screens until there is a concrete need. Lightweight edits and exports can belong in the MVP when they are central to the workflow, as ranks, team overrides, Seed, Reset, and Export are in this project.
 
 For personal annotations, localStorage is enough at first. Key saved values by stable ID so sorting, filtering, and regenerated data do not break the user's notes.
 
 When personal annotations must stay ordered, encode the invariant in one update helper. For example, a personal rank list should normalize to contiguous integer ranks after every add, move, or delete instead of relying on each event handler to remember the rule.
+
+Use time-saving commands when a workflow is repetitive. In this project, `Seed` fills empty ranks through a requested target count using the default index order, which gives users a fast starting point before manual adjustments.
 
 ## UI Lessons
 
@@ -112,6 +119,8 @@ For data-heavy tools, keep the interface quiet and efficient:
 - Use a consistent design language for typography, color, elevation, and control shape.
 - Keep table rows stable in height so filtering and editing do not visually jump.
 - Keep mobile tables ruthless: show only columns needed for the current workflow, compress secondary columns, and move filters or extras into a menu when results should remain the first thing users see.
+- Prefer identifying columns that users can recognize quickly. For player lists, age, height, school/club, country, and draft slot are more useful in the table than internal IDs, while IDs can remain in exports and generated data.
+- On mobile, keep the highest-frequency navigation visible. For this project, Menu, Info/Stats view switching, and dark mode live in the top row, while lower-frequency filters and utility buttons live behind the slide-down menu.
 
 ## Accessibility Pattern
 
@@ -121,7 +130,6 @@ Treat accessibility as part of the MVP, not as a final polish pass:
 - Keep every control labeled through visible label text or an explicit `aria-label`.
 - Use real table headers with `scope="col"` so screen readers can connect cells to columns.
 - For sortable columns, expose the current sort with `aria-sort`.
-- For custom meters or visual indicators, provide ARIA value attributes and a text value.
 - Keep focus states visible and consistent; define the focus style once as a reusable token.
 - Make mobile menus announce open/closed state with `aria-expanded`.
 - If visual labels are compressed on mobile, preserve meaningful accessible text in the DOM.
@@ -135,7 +143,8 @@ Avoid repeating behavior rules across event handlers:
 - Keep column definitions in arrays and render headers/rows from those definitions.
 - Use small helpers for repeated DOM creation, formatting, persistence, sorting, and normalization.
 - Put localStorage reads and writes behind helper functions so the storage strategy can change later.
-- Keep view-specific behavior explicit. For example, editable team controls belong to the player outlook view, while fantasy stats stay read-focused.
+- Keep view-specific behavior explicit. For example, editable team controls belong to the Player Info view, while fantasy stats stay read-focused.
+- Keep duplicate responsive controls synced through one state helper. For example, desktop and mobile theme switches should update the same theme state and saved preference.
 - Prefer one shared CSS custom property for repeated colors, focus rings, shadows, and design tokens.
 - Add a tiny logic test when a helper protects an important invariant, such as no-gap rank ordering.
 - Keep export field lists, filenames, and empty-state display values in named constants so file download, clipboard copy, and table rendering do not drift.

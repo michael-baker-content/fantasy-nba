@@ -28,7 +28,6 @@
   --danger: #b3261e;
   --focus-ring: 3px solid rgba(11, 87, 208, 0.22);
   --button-hover: #c2d7f8;
-  --meter-bg: #e8eaed;
   --row-border: #e8eaed;
   --row-hover: #f8fafd;
   --shadow: 0 1px 2px rgba(60, 64, 67, 0.18), 0 2px 6px rgba(60, 64, 67, 0.12);
@@ -66,7 +65,6 @@ body[data-theme="dark"] {
   --danger: #f2b8b5;
   --focus-ring: 3px solid rgba(168, 199, 250, 0.34);
   --button-hover: #0b57d0;
-  --meter-bg: #3f4654;
   --row-border: #303642;
   --row-hover: #20242c;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.50), 0 3px 8px rgba(0, 0, 0, 0.30);
@@ -100,10 +98,14 @@ select {
 
 .app-header {
   display: flex;
-  align-items: end;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 24px;
   margin-bottom: 20px;
+}
+
+.app-header > div {
+  min-width: 0;
 }
 
 .eyebrow {
@@ -133,36 +135,6 @@ h1 {
   white-space: nowrap;
 }
 
-.summary-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(118px, 1fr));
-  gap: 10px;
-}
-
-.summary-strip > div {
-  min-height: 70px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
-}
-
-.summary-strip span {
-  display: block;
-  min-height: 28px;
-  font-size: 1.5rem;
-  font-weight: 700;
-  line-height: 1.1;
-}
-
-.summary-strip small {
-  display: block;
-  margin-top: 4px;
-  color: var(--muted);
-  font-size: 0.76rem;
-}
-
 .filters {
   position: relative;
   display: grid;
@@ -178,7 +150,7 @@ h1 {
 
 .menu-row {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   margin-bottom: 10px;
 }
 
@@ -196,15 +168,13 @@ h1 {
 }
 
 .field:nth-of-type(5) {
-  grid-column: span 3;
-}
-
-.range-group {
-  grid-column: span 5;
+  grid-column: 1 / span 4;
 }
 
 .action-buttons {
-  grid-column: span 4;
+  grid-column: 5 / -1;
+  justify-self: stretch;
+  width: 100%;
 }
 
 .action-status {
@@ -251,14 +221,11 @@ h1 {
   color: var(--on-accent-container);
 }
 
-.field,
-.range-group {
+.field {
   min-width: 0;
 }
 
-.field span,
-.range-header span,
-.range-controls span {
+.field span {
   display: block;
   margin-bottom: 6px;
   color: var(--muted);
@@ -285,59 +252,23 @@ select:hover {
 
 input[type="search"]:focus,
 select:focus,
-button:focus-visible,
-input[type="range"]:focus-visible {
+button:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;
 }
 
-.range-group {
-  min-height: 64px;
-  padding: 0 2px;
-}
-
-.range-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-}
-
-.range-header output {
-  color: var(--text);
-  font-size: 0.78rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.range-controls {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-.range-controls label {
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-input[type="range"] {
-  width: 100%;
-  accent-color: var(--accent);
-}
-
 .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   height: 42px;
   min-width: 84px;
   border: 1px solid transparent;
   border-radius: 999px;
   background: var(--accent-container);
   color: var(--on-accent-container);
-  padding-right: 14px;
-  padding-left: 14px;
+  padding-inline: 14px;
+  text-align: center;
   font-weight: 700;
   cursor: pointer;
   box-shadow: none;
@@ -426,18 +357,15 @@ input[type="range"] {
 }
 
 .action-buttons {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 
 .export-menu {
   position: relative;
-  flex: 1 1 0;
+  display: flex;
   min-width: 0;
-}
-
-.export-menu .secondary-button {
-  width: 100%;
 }
 
 .export-options {
@@ -470,9 +398,13 @@ input[type="range"] {
   background: var(--control-hover);
 }
 
-.action-buttons .secondary-button {
-  flex: 1 1 0;
+.action-buttons > .secondary-button,
+.action-buttons > .export-menu {
   min-width: 0;
+}
+
+.action-buttons .secondary-button {
+  width: 100%;
 }
 
 .theme-toggle {
@@ -481,6 +413,7 @@ input[type="range"] {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex: 0 0 auto;
   min-height: 42px;
   padding: 4px 6px 4px 14px;
   border: 1px solid var(--line);
@@ -493,6 +426,10 @@ input[type="range"] {
 }
 
 .theme-symbols {
+  display: none;
+}
+
+.theme-toggle-mobile {
   display: none;
 }
 
@@ -591,6 +528,17 @@ table {
   min-width: 1080px;
   border-collapse: separate;
   border-spacing: 0;
+}
+
+.table-wrap[data-view="players"] table {
+  min-width: 1120px;
+  table-layout: fixed;
+}
+
+.table-wrap[data-view="players"] th,
+.table-wrap[data-view="players"] td {
+  padding-right: 8px;
+  padding-left: 8px;
 }
 
 thead th {
@@ -698,12 +646,55 @@ tbody tr:hover .col-player {
   box-shadow: 1px 0 0 var(--line);
 }
 
+.table-wrap[data-view="players"] .col-player {
+  width: 25ch;
+  min-width: 25ch;
+  max-width: 25ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .table-wrap[data-view="fantasy"] .col-player {
   width: 28ch;
   min-width: 28ch;
   max-width: 28ch;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.col-team {
+  width: 96px;
+}
+
+.col-position {
+  width: 68px;
+}
+
+.col-age {
+  width: 52px;
+  text-align: center;
+}
+
+.col-height {
+  width: 68px;
+}
+
+.col-college {
+  width: 156px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.col-country {
+  width: 104px;
+}
+
+.col-draft {
+  width: 104px;
+}
+
+.col-experience {
+  width: 96px;
 }
 
 .table-wrap[data-view="fantasy"] th:not(.col-index, .col-rank, .col-player),
@@ -784,41 +775,6 @@ td {
   font-weight: 700;
 }
 
-.likelihood {
-  display: grid;
-  grid-template-columns: 52px minmax(72px, 1fr);
-  align-items: center;
-  gap: 9px;
-  width: 150px;
-}
-
-.likelihood-value {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-.meter {
-  height: 8px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--meter-bg);
-}
-
-.meter span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent);
-}
-
-.meter.mid span {
-  background: var(--gold);
-}
-
-.meter.low span {
-  background: var(--danger);
-}
-
 .status-line {
   padding: 28px;
   border: 1px solid var(--line);
@@ -831,12 +787,7 @@ td {
 
 @media (min-width: 1025px) and (max-width: 1180px) {
   .app-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .summary-strip {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: flex-start;
   }
 
   .filters {
@@ -860,19 +811,6 @@ td {
     grid-column: span 1;
   }
 
-  .range-group {
-    grid-column: span 1;
-  }
-
-  .range-controls label {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-
-  .range-controls span {
-    margin-bottom: 0;
-  }
-
   .action-buttons {
     grid-column: span 2;
   }
@@ -886,10 +824,6 @@ td {
   .app-header {
     gap: 16px;
     margin-bottom: 16px;
-  }
-
-  .summary-strip {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .view-tabs {
@@ -911,17 +845,9 @@ td {
     grid-column: span 1;
   }
 
-  .field:nth-of-type(4) {
-    grid-column: 1 / -1;
-  }
-
+  .field:nth-of-type(4),
   .field:nth-of-type(5) {
-    grid-column: 1;
-  }
-
-  .range-group {
-    grid-column: 2;
-    grid-row: auto;
+    grid-column: span 1;
   }
 
   .action-buttons {
@@ -953,16 +879,20 @@ td {
     font-size: clamp(1.32rem, 6.1vw, 1.85rem);
   }
 
-  .summary-strip {
-    display: none;
-  }
-
   .menu-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(78px, 0.9fr) minmax(104px, 1.15fr) auto;
     gap: 8px;
     align-items: center;
     margin-bottom: 8px;
+  }
+
+  .theme-toggle-desktop {
+    display: none;
+  }
+
+  .theme-toggle-mobile {
+    display: flex;
   }
 
   .mobile-menu-toggle {
@@ -981,21 +911,21 @@ td {
   }
 
   .view-tabs {
-    display: none;
+    display: inline-flex;
     width: 100%;
-    margin-bottom: 10px;
-  }
-
-  .mobile-menu-open .view-tabs {
-    display: flex;
-    animation: menu-slide 140ms ease-out;
+    margin-bottom: 0;
   }
 
   .view-tab {
     flex: 1;
     min-height: 34px;
-    padding: 0 8px;
-    font-size: 0.82rem;
+    padding: 0 7px;
+    font-size: 0;
+  }
+
+  .view-tab::after {
+    content: attr(data-mobile-label);
+    font-size: 0.78rem;
   }
 
   .filters {
@@ -1014,8 +944,7 @@ td {
     animation: menu-slide 140ms ease-out;
   }
 
-  .mobile-menu-open .filters > .field:not(.search-field),
-  .mobile-menu-open .filters > .range-group {
+  .mobile-menu-open .filters > .field:not(.search-field) {
     display: block;
   }
 
@@ -1023,8 +952,7 @@ td {
     display: grid;
   }
 
-  .filters > .search-field,
-  .filters > .range-group {
+  .filters > .search-field {
     grid-column: 1 / -1;
   }
 
@@ -1050,17 +978,7 @@ td {
     background: var(--filter-section);
   }
 
-  .filters > .range-group {
-    grid-row: auto;
-    padding: 8px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: var(--filter-section);
-  }
-
-  .field span,
-  .range-header span,
-  .range-controls span {
+  .field span {
     margin-bottom: 4px;
     font-size: 0.68rem;
   }
@@ -1069,20 +987,6 @@ td {
   select {
     height: 38px;
     padding: 0 10px;
-  }
-
-  .range-group {
-    min-height: 58px;
-  }
-
-  .range-controls {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-
-  .range-controls label {
-    grid-template-columns: 64px minmax(0, 1fr);
-    gap: 10px;
   }
 
   .action-buttons {
@@ -1143,8 +1047,7 @@ td {
 
   .action-buttons .secondary-button {
     width: 100%;
-    padding-right: 6px;
-    padding-left: 6px;
+    padding-inline: 6px;
   }
 
   .secondary-button {
@@ -1163,7 +1066,7 @@ td {
   }
 
   table {
-    min-width: 820px;
+    min-width: 1000px;
     table-layout: fixed;
   }
 
@@ -1266,36 +1169,42 @@ td {
   }
 
   .col-team {
-    width: 76px;
+    width: 78px;
   }
 
   .col-player {
-    width: 25ch;
+    width: 24ch;
     min-width: 0;
-    max-width: 25ch;
+    max-width: 24ch;
     white-space: nowrap;
   }
 
   .col-position {
-    width: 74px;
+    width: 58px;
   }
 
-  .col-id {
-    width: 86px;
+  .col-age {
+    width: 46px;
+  }
+
+  .col-height {
+    width: 58px;
+  }
+
+  .col-college {
+    width: 122px;
+  }
+
+  .col-country {
+    width: 82px;
+  }
+
+  .col-draft {
+    width: 90px;
   }
 
   .col-experience {
-    width: 92px;
-  }
-
-  .col-likelihood {
-    width: 132px;
-  }
-
-  .likelihood {
-    grid-template-columns: 46px minmax(56px, 1fr);
-    width: 120px;
-    gap: 7px;
+    width: 84px;
   }
 
   .status-line {

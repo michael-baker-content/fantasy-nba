@@ -19,8 +19,19 @@ WEB_DATA_FILE = WEB_DIR / "players-data.js"
 EXPERIENCE_OVERRIDES_FILE = DATA_DIR / "experience_overrides.csv"
 LIKELIHOOD_OVERRIDES_FILE = DATA_DIR / "active_likelihood_overrides.csv"
 FREE_AGENTS_FILE = DATA_DIR / "free_agents.csv"
+BIOS_FILE = DATA_DIR / "player_bios.csv"
 MIN_FREE_AGENT_GAMES = 10
 MIN_FREE_AGENT_CONTRIBUTION = 6
+BIO_FIELDS = [
+    "birthdate",
+    "age",
+    "height",
+    "college",
+    "country",
+    "draft_year",
+    "draft_round",
+    "draft_number",
+]
 
 OUTPUT_FIELDS = [
     "index",
@@ -530,11 +541,25 @@ def write_review_csv(rows: list[dict[str, object]]) -> None:
             writer.writerow({field: {"index": index, **row}.get(field, "") for field in REVIEW_FIELDS})
 
 
+def read_bios_by_id() -> dict[str, dict[str, str]]:
+    if not BIOS_FILE.exists():
+        return {}
+
+    with BIOS_FILE.open(newline="", encoding="utf-8") as file:
+        return {
+            str(row.get("player_id")): {field: row.get(field, "") for field in BIO_FIELDS}
+            for row in csv.DictReader(file)
+            if row.get("player_id")
+        }
+
+
 def write_web_data(rows: list[dict[str, object]]) -> None:
     WEB_DIR.mkdir(exist_ok=True)
+    bios_by_id = read_bios_by_id()
     clean_rows = []
     for index, row in enumerate(rows, start=1):
         indexed_row = {"index": index, **row}
+        indexed_row.update(bios_by_id.get(str(indexed_row.get("player_id")), {}))
         clean_rows.append(
             {
                 "index": indexed_row.get("index", ""),
@@ -543,7 +568,14 @@ def write_web_data(rows: list[dict[str, object]]) -> None:
                 "position": indexed_row.get("position", ""),
                 "player_id": indexed_row.get("player_id", ""),
                 "experience": indexed_row.get("experience", ""),
-                "active_likelihood": indexed_row.get("active_likelihood", ""),
+                "birthdate": indexed_row.get("birthdate", ""),
+                "age": indexed_row.get("age", ""),
+                "height": indexed_row.get("height", ""),
+                "college": indexed_row.get("college", ""),
+                "country": indexed_row.get("country", ""),
+                "draft_year": indexed_row.get("draft_year", ""),
+                "draft_round": indexed_row.get("draft_round", ""),
+                "draft_number": indexed_row.get("draft_number", ""),
                 "fantasy_fg_pct": indexed_row.get("fantasy_fg_pct", ""),
                 "fantasy_fgm": indexed_row.get("fantasy_fgm", ""),
                 "fantasy_fga": indexed_row.get("fantasy_fga", ""),

@@ -16,7 +16,14 @@ const FULL_EXPORT_FIELDS = [
   "position",
   "nba_player_id",
   "experience",
-  "active_likelihood",
+  "age",
+  "birthdate",
+  "height",
+  "college",
+  "country",
+  "draft_year",
+  "draft_round",
+  "draft_number",
   "fantasy_fg_pct",
   "fantasy_fgm",
   "fantasy_fga",
@@ -40,7 +47,14 @@ const players = [
     position: "G",
     playerId: "101",
     experience: "Veteran",
-    activeLikelihood: 0.95,
+    age: "28",
+    birthdate: "1998-01-01",
+    height: "6-4",
+    college: "Alpha State",
+    country: "USA",
+    draftYear: "2020",
+    draftRound: "1",
+    draftNumber: "10",
     fantasy: { fgPct: 0.5, fgm: 10, fga: 20, ftPct: 0.8, ftm: 8, fta: 10, fg3m: 4, pts: 30, reb: 2, ast: 7, stl: 1, blk: 0, tov: 5 },
   },
   {
@@ -50,7 +64,14 @@ const players = [
     position: "F",
     playerId: "102",
     experience: "Rookie",
-    activeLikelihood: 0.8,
+    age: "20",
+    birthdate: "2006-02-02",
+    height: "6-8",
+    college: "Beta Tech",
+    country: "Canada",
+    draftYear: "2026",
+    draftRound: "2",
+    draftNumber: "34",
     fantasy: { fgPct: 0.4, fgm: 6, fga: 15, ftPct: null, ftm: null, fta: null, fg3m: 1, pts: 12, reb: 10, ast: 1, stl: 2, blk: 1, tov: 1 },
   },
   {
@@ -60,7 +81,14 @@ const players = [
     position: "C",
     playerId: "103",
     experience: "Veteran",
-    activeLikelihood: 0.5,
+    age: "",
+    birthdate: "",
+    height: "",
+    college: "",
+    country: "",
+    draftYear: "",
+    draftRound: "",
+    draftNumber: "",
     fantasy: { fgPct: null, fgm: null, fga: null, ftPct: null, ftm: null, fta: null, fg3m: null, pts: null, reb: null, ast: null, stl: null, blk: null, tov: null },
   },
 ];
@@ -125,6 +153,7 @@ const fullRows = fullExportRows(players.slice(0, 2), helpers);
 assertEqual("full export preserves edited team", fullRows[0].team, "ZZZ");
 assertEqual("full export preserves original team", fullRows[0].original_team, "AAA");
 assertEqual("full export labels experience", fullRows[1].experience, "Rookie");
+assertEqual("full export includes bio fields", fullRows[0].college, "Alpha State");
 assertEqual("full csv includes all full export headers", rowsToCsv(FULL_EXPORT_FIELDS, fullRows).startsWith(FULL_EXPORT_FIELDS.join(",")), true);
 
 console.log("export and sort logic ok");

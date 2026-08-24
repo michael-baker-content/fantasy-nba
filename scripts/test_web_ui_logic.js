@@ -1,5 +1,6 @@
 const {
   formatFantasyValue,
+  fantasyValue,
   matchesPositionFilter,
   normalizeSearchText,
   searchablePlayerText,
@@ -28,6 +29,16 @@ assertEqual("Veteran maps to veteran", experienceValue("Veteran"), "veteran");
 assertEqual("missing count with data", formatFantasyValue(null, "number", true), "0");
 assertEqual("missing percent with data", formatFantasyValue(null, "percent", true), "—");
 assertEqual("missing stat without data", formatFantasyValue(null, "number", false), "");
+assertEqual(
+  "fantasy value reads stat keys",
+  fantasyValue({ index: 1, playerName: "Sample", fantasy: { pts: 42 } }, "pts", () => null),
+  42,
+);
+assertEqual(
+  "fantasy value reads index",
+  fantasyValue({ index: 7, playerName: "Sample", fantasy: {} }, "index", () => null),
+  7,
+);
 assertEqual(
   "nickname alias matches",
   searchablePlayerText("Victor Wembanyama", PLAYER_SEARCH_ALIASES).includes("wemby"),

@@ -17,20 +17,14 @@
           <p class="eyebrow">2026-27 NBA</p>
           <h1>NBA Player Ranker</h1>
         </div>
-        <div class="summary-strip" aria-live="polite">
-          <div>
-            <span id="visible-count">0</span>
-            <small>Shown</small>
-          </div>
-          <div>
-            <span id="total-count">0</span>
-            <small>Total</small>
-          </div>
-          <div>
-            <span id="average-likelihood">0.00</span>
-            <small>Avg Likelihood</small>
-          </div>
-        </div>
+        <label class="theme-toggle theme-toggle-desktop">
+          <span class="theme-text">Dark Mode</span>
+          <span class="theme-symbols" aria-hidden="true">☀️/🌙</span>
+          <input id="theme-toggle" type="checkbox" role="switch" aria-label="Dark Mode">
+          <span class="switch-track" aria-hidden="true">
+            <span class="switch-thumb"></span>
+          </span>
+        </label>
       </header>
 
       <div class="menu-row">
@@ -44,20 +38,19 @@
           <span class="mobile-menu-icon" aria-hidden="true">&#9776;</span>
           <span class="mobile-menu-label">Menu</span>
         </button>
-        <label class="theme-toggle">
+        <nav class="view-tabs" aria-label="Explorer views">
+          <button class="view-tab is-active" type="button" data-view="players" data-mobile-label="Info" aria-current="page">Player Info</button>
+          <button class="view-tab" type="button" data-view="fantasy" data-mobile-label="Stats" aria-current="false">Fantasy Stats</button>
+        </nav>
+        <label class="theme-toggle theme-toggle-mobile">
           <span class="theme-text">Dark Mode</span>
           <span class="theme-symbols" aria-hidden="true">☀️/🌙</span>
-          <input id="theme-toggle" type="checkbox" role="switch" aria-label="Dark Mode">
+          <input id="theme-toggle-mobile" type="checkbox" role="switch" aria-label="Dark Mode">
           <span class="switch-track" aria-hidden="true">
             <span class="switch-thumb"></span>
           </span>
         </label>
       </div>
-
-      <nav class="view-tabs" aria-label="Explorer views">
-        <button class="view-tab is-active" type="button" data-view="players" aria-current="page">Player Outlook</button>
-        <button class="view-tab" type="button" data-view="fantasy" aria-current="false">Fantasy Totals</button>
-      </nav>
 
       <section id="mobile-menu" class="filters" aria-label="Player filters">
         <label class="field search-field">
@@ -93,26 +86,11 @@
           <select id="sort-select">
             <option value="index-asc">Default</option>
             <option value="personal-rank-asc">Rank</option>
-            <option value="likelihood-desc">Likelihood High To Low</option>
-            <option value="likelihood-asc">Likelihood Low To High</option>
             <option value="name-asc">Name A to Z</option>
             <option value="team-asc">Team A to Z</option>
             <option value="position-asc">Position A to Z</option>
           </select>
         </label>
-
-        <div class="range-group" aria-label="Minimum Likelihood">
-          <div class="range-header">
-            <span>Likelihood</span>
-            <output id="range-output">0.00 And Up</output>
-          </div>
-          <div class="range-controls">
-            <label>
-              <span>Minimum</span>
-              <input id="min-likelihood" type="range" min="0" max="1" step="0.01" value="0">
-            </label>
-          </div>
-        </div>
 
         <div class="action-buttons">
           <button id="seed-button" class="secondary-button" type="button">Seed</button>

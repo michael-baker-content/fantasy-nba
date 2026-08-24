@@ -16,7 +16,14 @@ const FULL_EXPORT_FIELDS = [
   "position",
   "nba_player_id",
   "experience",
-  "active_likelihood",
+  "age",
+  "birthdate",
+  "height",
+  "college",
+  "country",
+  "draft_year",
+  "draft_round",
+  "draft_number",
   "fantasy_fg_pct",
   "fantasy_fgm",
   "fantasy_fga",
@@ -42,6 +49,7 @@ const {
   updatePersonalRank: updatePersonalRankMap,
   sortPlayers: sortPlayerList,
   sortFantasyPlayers: sortFantasyPlayerList,
+  fantasyValue,
   hasFantasyData,
   formatFantasyValue,
   rowsToCsv,
@@ -99,14 +107,11 @@ const DEFAULT_FILTERS = {
   position: "",
   experience: "",
   sort: "index-asc",
-  minLikelihood: "0",
 };
 
 const playerSortOptions = [
   { value: "index-asc", label: "Default" },
   { value: "personal-rank-asc", label: "Rank" },
-  { value: "likelihood-desc", label: "Likelihood High To Low" },
-  { value: "likelihood-asc", label: "Likelihood Low To High" },
   { value: "name-asc", label: "Name A to Z" },
   { value: "name-desc", label: "Name Z to A" },
   { value: "team-asc", label: "Team A to Z" },
@@ -144,14 +149,11 @@ const els = {
   tableScrollbarInner: document.querySelector(".table-scrollbar-inner"),
   visibleCount: document.querySelector("#visible-count"),
   totalCount: document.querySelector("#total-count"),
-  averageLikelihood: document.querySelector("#average-likelihood"),
   search: document.querySelector("#search-input"),
   team: document.querySelector("#team-filter"),
   position: document.querySelector("#position-filter"),
   experience: document.querySelector("#experience-filter"),
   sort: document.querySelector("#sort-select"),
-  minLikelihood: document.querySelector("#min-likelihood"),
-  rangeOutput: document.querySelector("#range-output"),
   reset: document.querySelector("#reset-button"),
   seed: document.querySelector("#seed-button"),
   export: document.querySelector("#export-button"),
@@ -163,7 +165,7 @@ const els = {
   exportFullJson: document.querySelector("#export-full-json-button"),
   exportStatus: document.querySelector("#export-status"),
   top: document.querySelector("#top-button"),
-  themeToggle: document.querySelector("#theme-toggle"),
+  themeToggles: [...document.querySelectorAll(".theme-toggle input")],
   resetDialog: document.querySelector("#reset-dialog"),
   resetFilters: document.querySelector("#reset-filters-button"),
   deleteSavedData: document.querySelector("#delete-saved-data-button"),
@@ -238,9 +240,12 @@ const playerColumns = [
   { label: "Player", className: "col-player" },
   { label: "Team", className: "col-team" },
   { label: "Position", className: "col-position" },
-  { label: "NBA ID", className: "col-id" },
+  { label: "Age", className: "col-age" },
+  { label: "Height", className: "col-height" },
+  { label: "Background", className: "col-college" },
+  { label: "Country", className: "col-country" },
+  { label: "Draft", className: "col-draft" },
   { label: "Experience", className: "col-experience" },
-  { label: "Likelihood", className: "col-likelihood" },
 ];
 
 function virtualRowHeight() {
@@ -317,7 +322,14 @@ function toPlayer(row) {
     position: row.position,
     playerId: row.player_id,
     experience: row.experience,
-    activeLikelihood: Number(row.active_likelihood),
+    age: row.age,
+    birthdate: row.birthdate,
+    height: row.height,
+    college: row.college,
+    country: row.country,
+    draftYear: row.draft_year,
+    draftRound: row.draft_round,
+    draftNumber: row.draft_number,
     fantasy: {
       fgPct: toOptionalNumber(row.fantasy_fg_pct),
       fgm: toOptionalNumber(row.fantasy_fgm),
@@ -371,8 +383,10 @@ function applyTheme(theme) {
   const isDark = theme === "dark";
 
   document.body.dataset.theme = theme;
-  els.themeToggle.checked = isDark;
-  els.themeToggle.setAttribute("aria-checked", String(isDark));
+  els.themeToggles.forEach((toggle) => {
+    toggle.checked = isDark;
+    toggle.setAttribute("aria-checked", String(isDark));
+  });
 }
 
 function saveTheme(theme) {
@@ -533,16 +547,12 @@ function setupFilters() {
 }
 
 function currentFilters() {
-  const min = Number(els.minLikelihood.value);
-
   return {
     search: normalizeSearchText(els.search.value.trim()),
     team: els.team.value,
     position: els.position.value,
     experience: els.experience.value,
     sort: state.playerSort,
-    min,
-    max: 1,
   };
 }
 
@@ -578,15 +588,12 @@ function filterPlayers() {
     const matchesTeam = !filters.team || displayedTeam(player) === filters.team;
     const matchesPosition = matchesPositionFilter(player.position, filters.position);
     const matchesExperience = !filters.experience || experienceValue(player) === filters.experience;
-    const matchesLikelihood =
-      player.activeLikelihood >= filters.min && player.activeLikelihood <= filters.max;
 
     return (
       matchesSearch &&
       matchesTeam &&
       matchesPosition &&
-      matchesExperience &&
-      matchesLikelihood
+      matchesExperience
     );
   });
 
@@ -594,16 +601,6 @@ function filterPlayers() {
     state.view === "fantasy"
       ? sortFantasyPlayers(filtered)
       : sortPlayers(filtered, filters.sort);
-}
-
-function likelihoodClass(value) {
-  if (value < 0.5) {
-    return "low";
-  }
-  if (value < 0.75) {
-    return "mid";
-  }
-  return "";
 }
 
 function appendTextCell(row, value, className = "") {
@@ -648,43 +645,36 @@ function appendTeamCell(row, player) {
   row.append(cell);
 }
 
-function appendLikelihoodCell(row, label, value) {
-  const cell = document.createElement("td");
-  const wrapper = document.createElement("div");
-  const labelEl = document.createElement("span");
-  const meter = document.createElement("span");
-  const fill = document.createElement("span");
+function draftLabel(player) {
+  const year = String(player.draftYear || "").trim();
+  const round = String(player.draftRound || "").trim();
+  const number = String(player.draftNumber || "").trim();
 
-  cell.className = "col-likelihood";
-  wrapper.className = "likelihood";
-  labelEl.className = "likelihood-value";
-  labelEl.textContent = label;
-  meter.className = `meter ${likelihoodClass(value)}`;
-  meter.setAttribute("role", "meter");
-  meter.setAttribute("aria-valuemin", "0");
-  meter.setAttribute("aria-valuemax", "1");
-  meter.setAttribute("aria-valuenow", String(value));
-  meter.setAttribute("aria-label", `Active likelihood ${label}`);
-  fill.style.width = `${value * 100}%`;
+  if (!year || year.toLowerCase() === "undrafted") {
+    return "";
+  }
 
-  meter.append(fill);
-  wrapper.append(labelEl, meter);
-  cell.append(wrapper);
-  row.append(cell);
+  if (round && number && round.toLowerCase() !== "undrafted") {
+    return `${year} R${round} P${number}`;
+  }
+
+  return year;
 }
 
 function playerRow(player) {
   const tr = document.createElement("tr");
-  const likelihood = player.activeLikelihood.toFixed(2);
 
   appendTextCell(tr, player.index, "col-index number-cell");
   appendPersonalRankCell(tr, player);
   appendTextCell(tr, player.playerName, "col-player player-cell");
   appendTeamCell(tr, player);
   appendTextCell(tr, player.position, "col-position");
-  appendTextCell(tr, player.playerId, "col-id number-cell");
+  appendTextCell(tr, player.age, "col-age number-cell");
+  appendTextCell(tr, player.height, "col-height");
+  appendTextCell(tr, player.college, "col-college");
+  appendTextCell(tr, player.country, "col-country");
+  appendTextCell(tr, draftLabel(player), "col-draft");
   appendTextCell(tr, experienceLabel(player), "col-experience");
-  appendLikelihoodCell(tr, likelihood, player.activeLikelihood);
 
   return tr;
 }
@@ -778,15 +768,12 @@ function renderFantasyHeader() {
 }
 
 function renderSummary() {
-  const totalLikelihood = state.filtered.reduce(
-    (sum, player) => sum + player.activeLikelihood,
-    0,
-  );
-  const average = state.filtered.length ? totalLikelihood / state.filtered.length : 0;
-
-  els.visibleCount.textContent = String(state.filtered.length);
-  els.totalCount.textContent = String(state.players.length);
-  els.averageLikelihood.textContent = average.toFixed(2);
+  if (els.visibleCount) {
+    els.visibleCount.textContent = String(state.filtered.length);
+  }
+  if (els.totalCount) {
+    els.totalCount.textContent = String(state.players.length);
+  }
 }
 
 function visibleColumnCount() {
@@ -838,6 +825,7 @@ function renderTable() {
   syncSortSelectOptions();
   els.tableWrap.scrollTop = 0;
   lastRenderedScrollTop = 0;
+  els.body.replaceChildren();
 
   if (state.view === "fantasy") {
     renderFantasyHeader();
@@ -975,13 +963,7 @@ function endTableDrag(event) {
   tableDrag.pointerId = null;
 }
 
-function renderRangeLabel() {
-  const { min } = currentFilters();
-  els.rangeOutput.textContent = `${min.toFixed(2)} And Up`;
-}
-
 function applyFilters() {
-  renderRangeLabel();
   filterPlayers();
   renderSummary();
   renderTable();
@@ -1370,7 +1352,7 @@ async function copyRankedCsvToClipboard() {
 }
 
 function bindEvents() {
-  [els.search, els.team, els.position, els.experience, els.minLikelihood].forEach((control) =>
+  [els.search, els.team, els.position, els.experience].forEach((control) =>
     control.addEventListener("input", applyFilters),
   );
   els.sort.addEventListener("input", () => {
@@ -1421,10 +1403,12 @@ function bindEvents() {
     renderVirtualRows();
     updateTableScrollbar();
   });
-  els.themeToggle.addEventListener("change", () => {
-    const theme = els.themeToggle.checked ? "dark" : "light";
-    applyTheme(theme);
-    saveTheme(theme);
+  els.themeToggles.forEach((toggle) => {
+    toggle.addEventListener("change", () => {
+      const theme = toggle.checked ? "dark" : "light";
+      applyTheme(theme);
+      saveTheme(theme);
+    });
   });
   els.mobileMenuToggle.addEventListener("click", () => {
     setMobileMenuOpen(!document.body.classList.contains("mobile-menu-open"));
@@ -1595,6 +1579,7 @@ function bindEvents() {
         item.classList.toggle("is-active", isActive);
         item.setAttribute("aria-current", isActive ? "page" : "false");
       });
+      syncTableScrollPosition(0);
       syncSortSelectOptions();
       closeMobileMenu();
       applyFilters();
