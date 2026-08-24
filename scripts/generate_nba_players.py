@@ -19,6 +19,7 @@ WEB_DATA_FILE = WEB_DIR / "players-data.js"
 EXPERIENCE_OVERRIDES_FILE = DATA_DIR / "experience_overrides.csv"
 LIKELIHOOD_OVERRIDES_FILE = DATA_DIR / "active_likelihood_overrides.csv"
 FREE_AGENTS_FILE = DATA_DIR / "free_agents.csv"
+INDEX_OVERRIDES_FILE = DATA_DIR / "index_overrides.csv"
 BIOS_FILE = DATA_DIR / "player_bios.csv"
 MIN_FREE_AGENT_GAMES = 10
 MIN_FREE_AGENT_CONTRIBUTION = 6
@@ -308,9 +309,7 @@ def review_fields(
         "previous_usg_pct": round(as_float(previous_advanced_player.get("USG_PCT")), 3)
         if previous_advanced_player
         else "",
-        "draft_year": player.get("DRAFT_YEAR") or "",
-        "draft_round": player.get("DRAFT_ROUND") or "",
-        "draft_number": player.get("DRAFT_NUMBER") or "",
+        **draft_fields(player),
         "supplemental_status": as_int(player.get("SUPPLEMENTAL_STATUS")),
     }
 
@@ -358,6 +357,37 @@ def fantasy_fields(previous_total_player: dict[str, object] | None) -> dict[str,
         "fantasy_stl": previous_total_player.get("STL") or "",
         "fantasy_blk": previous_total_player.get("BLK") or "",
         "fantasy_tov": previous_total_player.get("TOV") or "",
+    }
+
+
+def draft_fields(row: dict[str, object]) -> dict[str, object]:
+    year = row.get("DRAFT_YEAR") or row.get("draft_year") or ""
+    round_value = row.get("DRAFT_ROUND") or row.get("draft_round") or ""
+    number = row.get("DRAFT_NUMBER") or row.get("draft_number") or ""
+    has_player_context = any(
+        row.get(field)
+        for field in [
+            "PERSON_ID",
+            "player_id",
+            "PLAYER_FIRST_NAME",
+            "PLAYER_LAST_NAME",
+            "player_name",
+            "FROM_YEAR",
+            "TO_YEAR",
+            "COLLEGE",
+            "college",
+            "COUNTRY",
+            "country",
+        ]
+    )
+
+    if not year and not round_value and not number and has_player_context:
+        year = "Undrafted"
+
+    return {
+        "draft_year": year,
+        "draft_round": round_value,
+        "draft_number": number,
     }
 
 
@@ -523,6 +553,58 @@ def dedupe_rows(rows: list[dict[str, object]]) -> list[dict[str, object]]:
     return deduped
 
 
+def normalized_name(value: object) -> str:
+    return " ".join(str(value or "").casefold().split())
+
+
+def read_index_override_keys() -> list[tuple[str, str]]:
+    if not INDEX_OVERRIDES_FILE.exists():
+        return []
+
+    keys: list[tuple[str, str]] = []
+    with INDEX_OVERRIDES_FILE.open(newline="", encoding="utf-8") as file:
+        rows = sorted(
+            csv.DictReader(file),
+            key=lambda row: as_int(row.get("index"), default=0),
+        )
+        for row in rows:
+            player_id = str(row.get("player_id") or row.get("nba_player_id") or "").strip()
+            player_name = normalized_name(row.get("player_name") or row.get("name"))
+
+            if player_id or player_name:
+                keys.append((player_id, player_name))
+
+    return keys
+
+
+def apply_index_overrides(rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    override_keys = read_index_override_keys()
+    if not override_keys:
+        return rows
+
+    rows_by_id = {str(row.get("player_id")): row for row in rows if row.get("player_id")}
+    rows_by_name = {normalized_name(row.get("player_name")): row for row in rows}
+    selected: list[dict[str, object]] = []
+    selected_ids: set[int] = set()
+
+    for player_id, player_name in override_keys:
+        row = rows_by_id.get(player_id) if player_id else None
+        if row is None and player_name:
+            row = rows_by_name.get(player_name)
+        if row is None:
+            continue
+
+        row_identity = id(row)
+        if row_identity in selected_ids:
+            continue
+
+        selected.append(row)
+        selected_ids.add(row_identity)
+
+    remaining = [row for row in rows if id(row) not in selected_ids]
+    return selected + remaining
+
+
 def write_csv(rows: list[dict[str, object]]) -> None:
     DATA_DIR.mkdir(exist_ok=True)
     with OUTPUT_FILE.open("w", newline="", encoding="utf-8") as file:
@@ -560,6 +642,7 @@ def write_web_data(rows: list[dict[str, object]]) -> None:
     for index, row in enumerate(rows, start=1):
         indexed_row = {"index": index, **row}
         indexed_row.update(bios_by_id.get(str(indexed_row.get("player_id")), {}))
+        indexed_row.update(draft_fields(indexed_row))
         clean_rows.append(
             {
                 "index": indexed_row.get("index", ""),
@@ -645,6 +728,7 @@ def main() -> None:
             str(row["player_name"]),
         )
     )
+    rows = apply_index_overrides(rows)
     write_csv(rows)
     write_review_csv(rows)
     write_web_data(rows)

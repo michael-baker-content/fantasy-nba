@@ -20,6 +20,7 @@ The `Export` menu includes:
 
 - `CSV File`: exports only ranked players with `rank`, `name`, `team`, and `position`.
 - `CSV To Clipboard`: copies that same simple ranked list.
+- `Index CSV`: exports ranked players as `index`, `player_name`, and `player_id`, suitable for saving as `data/index_overrides.csv`.
 - `Full CSV`, `Full XLSX`, and `Full JSON`: export the current filtered and sorted result set with the extra player, team, fantasy, and identity fields available in the app.
 
 Use `Reset` when you want to turn back the clock. `Reset Sorts` returns the sort order to the default for the current view. `Delete Saved Data` removes saved ranks, team edits, and theme preference from this browser.
@@ -111,7 +112,7 @@ python -m venv .venv
 Then run:
 
 ```powershell
-.\.venv\Scripts\python scripts/generate_nba_players.py
+.\scripts\generate_nba_players.ps1
 ```
 
 The script uses the maintained `nba_api` package, which reads NBA.com/stats data and preserves NBA.com/stats player IDs.
@@ -132,11 +133,12 @@ python scripts/sync_web_data.py
 
 ## Manual Inputs
 
-Three optional CSV files live in `data/`:
+Four optional CSV files live in `data/`:
 
 - `experience_overrides.csv`: force a player's Experience value to `Veteran` or `Rookie`.
 - `active_likelihood_overrides.csv`: override the hidden likelihood score when news, injuries, or roster context matter.
 - `free_agents.csv`: include additional unsigned players who are still plausible NBA players. Use `NA` (`Not Available`) for players whose team is not available.
+- `index_overrides.csv`: reorder the generated index from a browser `Index CSV` export. Listed players are moved to the top in exported order; skipped players keep the generator's current order after those listed players.
 
 The script also automatically adds free-agent candidates when a player appeared in the previous season's NBA stats feed, is not on the upcoming-season roster feed, and clears a modest recent-playing-time threshold.
 
@@ -147,6 +149,14 @@ For players who were already in the NBA last season, `experience` is `Veteran`. 
 The `index` field is assigned after sorting by an internal ranking score. The score combines active likelihood with prior-season production and Net Rating (`NET_RATING`) compared with the prior-season league average.
 
 The Net Rating adjustment is weighted by playing-time sample so small-minute outliers have less influence. The review CSV includes `index_score`, `previous_netrtg`, `netrtg_delta`, and `netrtg_sample_weight` for auditing.
+
+To make a personal ranking become the next generated default index, rank players in the browser, choose `Export` -> `Index CSV`, and save that file as:
+
+```text
+data/index_overrides.csv
+```
+
+The next run of `scripts/generate_nba_players.py` will apply that file after the automatic scoring sort. Any unlisted players retain their current generated order after the listed players are placed.
 
 ## Active Likelihood
 
@@ -172,13 +182,13 @@ The review CSV includes supporting fields such as `roster_bucket`, `likelihood_r
 
 The responsive layout has desktop, laptop, tablet, and mobile treatments. On narrow mobile screens, the first row keeps `Menu`, `Info / Stats`, and dark mode available, while player search and results remain visible by default. Additional filters, export, top, reset, and seed controls live in the slide-down menu.
 
-Wide tables include a sticky horizontal scrollbar beneath the visible results so columns can be scrolled left and right without jumping to the final row. Both table views also support touch-drag horizontal scrolling directly on the table area. The `Rank` and `Player` columns stay pinned while scrolling horizontally.
+Wide tables include a sticky horizontal scrollbar beneath the visible results so columns can be scrolled left and right without jumping to the final row. The `Rank` and `Player` columns stay pinned while scrolling horizontally. On mobile, horizontal table scrolling is replaced by compact columns and a player detail dialog: tap a player name to see the current view's full info or 2025-26 stats.
 
-The visual style uses Roboto for the interface and Bungee for the `NBA Player Ranker` heading, with Roboto as a fallback. The heading uses a basketball-orange `#F88158` outline with a red fill in both light and dark modes.
+The visual style uses Roboto for the interface and Bungee for the `NBA Player Ranker` heading, with Roboto as a fallback. The heading uses a theme-aware fill and stroke so the mark stays readable in both light and dark modes without becoming the loudest control on the page.
 
 ## Accessibility and Maintainability
 
-The explorer favors native HTML controls and semantic table markup. Labels are explicit, the mobile menu and export menu expose `aria-expanded`, fantasy stat sort headers expose `aria-sort`, export status messages use an `aria-live` region, and focus states use a shared Material-style focus token.
+The explorer favors native HTML controls and semantic table markup. Labels are explicit, the mobile menu, desktop controls panel, and export menu expose `aria-expanded`, fantasy stat sort headers expose `aria-sort`, export status messages use an `aria-live` region, and focus states use a shared Material-style focus token. The mobile player detail dialog returns focus to the player name that opened it when closed.
 
 The browser code keeps repeatable UI configuration in small constants, including default filters, column definitions, player search aliases, export fields, and fantasy empty-state display values. Pure browser logic lives in `web/app-logic.js` so rank updates, search matching, sorting, fantasy display, and export row construction can be reused by both the app and the Node test scripts.
 

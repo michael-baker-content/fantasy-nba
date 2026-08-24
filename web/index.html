@@ -32,7 +32,7 @@
           id="mobile-menu-toggle"
           class="mobile-menu-toggle"
           type="button"
-          aria-controls="mobile-menu"
+          aria-controls="controls-panel"
           aria-expanded="false"
         >
           <span class="mobile-menu-icon" aria-hidden="true">&#9776;</span>
@@ -42,6 +42,15 @@
           <button class="view-tab is-active" type="button" data-view="players" data-mobile-label="Info" aria-current="page">Player Info</button>
           <button class="view-tab" type="button" data-view="fantasy" data-mobile-label="Stats" aria-current="false">Fantasy Stats</button>
         </nav>
+        <button
+          id="desktop-filter-toggle"
+          class="desktop-filter-toggle"
+          type="button"
+          aria-controls="controls-panel"
+          aria-expanded="true"
+        >
+          Hide Controls
+        </button>
         <label class="theme-toggle theme-toggle-mobile">
           <span class="theme-text">Dark Mode</span>
           <span class="theme-symbols" aria-hidden="true">☀️</span>
@@ -52,7 +61,7 @@
         </label>
       </div>
 
-      <section id="mobile-menu" class="filters" aria-label="Player filters">
+      <section id="controls-panel" class="filters" aria-label="Player filters and actions">
         <label class="field search-field">
           <span>Search</span>
           <input id="search-input" type="search" placeholder="Player Name">
@@ -108,6 +117,7 @@
             <div id="export-menu" class="export-options" role="menu" hidden>
               <button id="export-file-button" type="button" role="menuitem">CSV File</button>
               <button id="export-copy-button" type="button" role="menuitem">CSV To Clipboard</button>
+              <button id="export-index-override-button" type="button" role="menuitem">Index CSV</button>
               <button id="export-full-csv-button" type="button" role="menuitem">Full CSV</button>
               <button id="export-full-xlsx-button" type="button" role="menuitem">Full XLSX</button>
               <button id="export-full-json-button" type="button" role="menuitem">Full JSON</button>
@@ -145,6 +155,21 @@
           <button class="secondary-button" type="submit">Cancel</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="player-detail-dialog" class="player-detail-dialog" aria-labelledby="player-detail-title">
+      <div class="player-detail-card">
+        <div class="player-detail-header">
+          <div>
+            <h2 id="player-detail-title"></h2>
+            <p id="player-detail-subtitle"></p>
+          </div>
+          <form method="dialog">
+            <button id="player-detail-close-button" class="player-detail-close" type="submit" aria-label="Close">×</button>
+          </form>
+        </div>
+        <dl id="player-detail-list" class="player-detail-list"></dl>
+      </div>
     </dialog>
 
     <script src="players-data.js"></script>

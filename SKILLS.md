@@ -80,6 +80,7 @@ Use small CSV override files instead of hardcoding exceptions:
 data/experience_overrides.csv
 data/active_likelihood_overrides.csv
 data/free_agents.csv
+data/index_overrides.csv
 ```
 
 Design overrides so they are easy to edit by hand:
@@ -89,6 +90,8 @@ Design overrides so they are easy to edit by hand:
 - Include only the field being overridden.
 
 Keep enrichment caches separate from manual override files. A cache like `data/player_bios.csv` should be regenerable from source data and safe to refresh, while override files should represent intentional human judgment.
+
+If the UI can create an override file, keep that export narrow and generator-friendly. In this project, the browser `Index CSV` export writes `index`, `player_name`, and `player_id` so the next data generation can apply a curated order while skipped players keep their generated order.
 
 ## Web Explorer Pattern
 
@@ -119,6 +122,7 @@ For data-heavy tools, keep the interface quiet and efficient:
 - Use a consistent design language for typography, color, elevation, and control shape.
 - Keep table rows stable in height so filtering and editing do not visually jump.
 - Keep mobile tables ruthless: show only columns needed for the current workflow, compress secondary columns, and move filters or extras into a menu when results should remain the first thing users see.
+- Replace mobile horizontal table scrolling with a detail path when the table becomes wider than the device can comfortably read. In this project, tapping a player opens a view-aware details dialog with Player Info or 2025-26 stats.
 - Prefer identifying columns that users can recognize quickly. For player lists, age, height, school/club, country, and draft slot are more useful in the table than internal IDs, while IDs can remain in exports and generated data.
 - On mobile, keep the highest-frequency navigation visible. For this project, Menu, Info/Stats view switching, and dark mode live in the top row, while lower-frequency filters and utility buttons live behind the slide-down menu.
 
@@ -132,6 +136,8 @@ Treat accessibility as part of the MVP, not as a final polish pass:
 - For sortable columns, expose the current sort with `aria-sort`.
 - Keep focus states visible and consistent; define the focus style once as a reusable token.
 - Make mobile menus announce open/closed state with `aria-expanded`.
+- Use `aria-expanded` for collapsible desktop panels too, and keep the controlled region's label broad enough to describe all of its actions.
+- For modal details, move focus into the dialog when it opens and restore focus to the launching control when it closes.
 - If visual labels are compressed on mobile, preserve meaningful accessible text in the DOM.
 - Recheck color contrast after any palette or theme change, especially muted text and colored status indicators.
 
@@ -145,6 +151,7 @@ Avoid repeating behavior rules across event handlers:
 - Put localStorage reads and writes behind helper functions so the storage strategy can change later.
 - Keep view-specific behavior explicit. For example, editable team controls belong to the Player Info view, while fantasy stats stay read-focused.
 - Keep duplicate responsive controls synced through one state helper. For example, desktop and mobile theme switches should update the same theme state and saved preference.
+- Keep repeated detail displays data-driven. Define the fields once for each view, then render the table, modal, and export rows through shared formatting helpers where possible.
 - Prefer one shared CSS custom property for repeated colors, focus rings, shadows, and design tokens.
 - Add a tiny logic test when a helper protects an important invariant, such as no-gap rank ordering.
 - Keep export field lists, filenames, and empty-state display values in named constants so file download, clipboard copy, and table rendering do not drift.
@@ -154,10 +161,9 @@ Avoid repeating behavior rules across event handlers:
 Good next upgrades usually come in this order:
 
 1. Add more transparent review details in the UI.
-2. Add expanded per-player details without crowding the table.
+2. Add edit screens for override CSVs.
 3. Move localStorage annotations into a local file or small database.
-4. Add edit screens for override CSVs.
-5. Add source snapshots so generated rankings can be compared over time.
-6. Add tests around scoring, deduping, browser data generation, and key UI invariants.
+4. Add source snapshots so generated rankings can be compared over time.
+5. Add tests around scoring, deduping, browser data generation, and key UI invariants.
 
 When upgrading, preserve the simple generated CSV contract unless there is a strong reason to change it.

@@ -3,10 +3,13 @@ const PERSONAL_RANK_KEY = "nba-player-explorer.personal-ranks.v1";
 const TEAM_OVERRIDE_KEY = "nba-player-explorer.team-overrides.v1";
 const THEME_KEY = "nba-player-explorer.theme.v1";
 const EXPORT_FILE_NAME = "my_nba_rankings.csv";
+const INDEX_OVERRIDE_EXPORT_FILE_NAME = "index_overrides.csv";
 const FULL_CSV_EXPORT_FILE_NAME = "nba_player_ranker_full_export.csv";
 const FULL_XLSX_EXPORT_FILE_NAME = "nba_player_ranker_full_export.xlsx";
 const FULL_JSON_EXPORT_FILE_NAME = "nba_player_ranker_full_export.json";
+const EMPTY_INFO_VALUE = "—";
 const EXPORT_FIELDS = ["rank", "name", "team", "position"];
+const INDEX_OVERRIDE_EXPORT_FIELDS = ["index", "player_name", "player_id"];
 const FULL_EXPORT_FIELDS = [
   "rank",
   "index",
@@ -54,6 +57,7 @@ const {
   formatFantasyValue,
   rowsToCsv,
   rankedExportRows: buildRankedExportRows,
+  indexOverrideExportRows: buildIndexOverrideExportRows,
   fullExportRows: buildFullExportRows,
   virtualWindow,
 } = window.NbaRankerLogic;
@@ -160,6 +164,7 @@ const els = {
   exportMenu: document.querySelector("#export-menu"),
   exportFile: document.querySelector("#export-file-button"),
   exportCopy: document.querySelector("#export-copy-button"),
+  exportIndexOverride: document.querySelector("#export-index-override-button"),
   exportFullCsv: document.querySelector("#export-full-csv-button"),
   exportFullXlsx: document.querySelector("#export-full-xlsx-button"),
   exportFullJson: document.querySelector("#export-full-json-button"),
@@ -169,6 +174,12 @@ const els = {
   resetDialog: document.querySelector("#reset-dialog"),
   resetFilters: document.querySelector("#reset-filters-button"),
   deleteSavedData: document.querySelector("#delete-saved-data-button"),
+  playerDetailDialog: document.querySelector("#player-detail-dialog"),
+  playerDetailTitle: document.querySelector("#player-detail-title"),
+  playerDetailSubtitle: document.querySelector("#player-detail-subtitle"),
+  playerDetailList: document.querySelector("#player-detail-list"),
+  playerDetailClose: document.querySelector("#player-detail-close-button"),
+  desktopFilterToggle: document.querySelector("#desktop-filter-toggle"),
   mobileMenuToggle: document.querySelector("#mobile-menu-toggle"),
   mobileMenuIcon: document.querySelector(".mobile-menu-icon"),
   mobileMenuLabel: document.querySelector(".mobile-menu-label"),
@@ -225,6 +236,7 @@ const fantasySortOptions = fantasyColumns
 let syncingTableScroll = false;
 let lastRenderedScrollTop = 0;
 let statusDismissTimer = null;
+let lastPlayerDetailTrigger = null;
 const tableDrag = {
   active: false,
   dragging: false,
@@ -376,7 +388,12 @@ function savePersonalRanks() {
 }
 
 function loadTheme() {
-  return localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light";
+  const savedTheme = localStorage.getItem(THEME_KEY);
+  if (savedTheme === "dark" || savedTheme === "light") {
+    return savedTheme;
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function applyTheme(theme) {
@@ -494,7 +511,7 @@ function movePersonalRankByScreenStep(input, direction) {
   updatePersonalRank(input.dataset.playerId, input.value);
   delete input.dataset.autofilledRank;
   input.dataset.stepStartValue = input.value;
-  applyFilters();
+  applyFilters({ preserveScroll: true });
   return true;
 }
 
@@ -579,6 +596,10 @@ function setFantasySortFromValue(value) {
   setFantasySort(key, direction === "asc" ? "asc" : "desc");
 }
 
+function isMobileViewport() {
+  return window.matchMedia("(max-width: 720px)").matches;
+}
+
 function filterPlayers() {
   const filters = currentFilters();
 
@@ -612,6 +633,21 @@ function appendTextCell(row, value, className = "") {
     cell.title = String(value);
     cell.setAttribute("aria-label", String(value));
   }
+  row.append(cell);
+}
+
+function appendPlayerCell(row, player) {
+  const cell = document.createElement("td");
+  const button = document.createElement("button");
+
+  cell.className = "col-player player-cell";
+  cell.title = player.playerName;
+  button.className = "player-detail-button";
+  button.type = "button";
+  button.textContent = player.playerName;
+  button.dataset.playerId = personalRankKey(player);
+  button.setAttribute("aria-label", `${player.playerName} details`);
+  cell.append(button);
   row.append(cell);
 }
 
@@ -653,8 +689,11 @@ function draftLabel(player) {
   const round = String(player.draftRound || "").trim();
   const number = String(player.draftNumber || "").trim();
 
-  if (!year || year.toLowerCase() === "undrafted") {
+  if (!year) {
     return "";
+  }
+  if (year.toLowerCase() === "undrafted") {
+    return "Undrafted";
   }
 
   if (round && number && round.toLowerCase() !== "undrafted") {
@@ -664,19 +703,24 @@ function draftLabel(player) {
   return year;
 }
 
+function infoValue(value) {
+  const text = String(value ?? "").trim();
+  return text && text !== "-" ? text : EMPTY_INFO_VALUE;
+}
+
 function playerRow(player) {
   const tr = document.createElement("tr");
 
   appendTextCell(tr, player.index, "col-index number-cell");
   appendPersonalRankCell(tr, player);
-  appendTextCell(tr, player.playerName, "col-player player-cell");
+  appendPlayerCell(tr, player);
   appendTeamCell(tr, player);
-  appendTextCell(tr, player.position, "col-position");
-  appendTextCell(tr, player.age, "col-age number-cell");
-  appendTextCell(tr, player.height, "col-height");
-  appendTextCell(tr, player.college, "col-college");
-  appendTextCell(tr, player.country, "col-country");
-  appendTextCell(tr, draftLabel(player), "col-draft");
+  appendTextCell(tr, infoValue(player.position), "col-position");
+  appendTextCell(tr, infoValue(player.age), "col-age number-cell");
+  appendTextCell(tr, infoValue(player.height), "col-height");
+  appendTextCell(tr, infoValue(player.college), "col-college");
+  appendTextCell(tr, infoValue(player.country), "col-country");
+  appendTextCell(tr, infoValue(draftLabel(player)), "col-draft");
   appendTextCell(tr, experienceLabel(player), "col-experience");
 
   return tr;
@@ -692,7 +736,7 @@ function fantasyRow(player) {
       return;
     }
     if (column.key === "playerName") {
-      appendTextCell(tr, player.playerName, "col-player player-cell");
+      appendPlayerCell(tr, player);
       return;
     }
     if (column.type === "team") {
@@ -795,14 +839,14 @@ function virtualSpacerRow(height) {
   return row;
 }
 
-function renderVirtualRows() {
+function renderVirtualRows({ scrollTop = els.tableWrap.scrollTop } = {}) {
   if (els.tableWrap.hidden) {
     return;
   }
 
   const windowedRows = virtualWindow(
     state.filtered.length,
-    els.tableWrap.scrollTop,
+    scrollTop,
     els.tableWrap.clientHeight,
     virtualRowHeight(),
     VIRTUAL_OVERSCAN_ROWS,
@@ -821,14 +865,22 @@ function renderVirtualRows() {
   }
 
   els.body.replaceChildren(...rows);
+  els.tableWrap.scrollTop = scrollTop;
 }
 
-function renderTable() {
+function renderTable({ preserveScroll = false } = {}) {
+  const scrollTop = preserveScroll ? els.tableWrap.scrollTop : 0;
+  const scrollLeft = preserveScroll ? els.tableWrap.scrollLeft : 0;
+  const activePlayerId = preserveScroll
+    ? document.activeElement?.closest(".personal-rank-input")?.dataset.playerId
+    : null;
+
   els.tableWrap.dataset.view = state.view;
   syncSortSelectOptions();
-  els.tableWrap.scrollTop = 0;
-  lastRenderedScrollTop = 0;
-  els.body.replaceChildren();
+  lastRenderedScrollTop = scrollTop;
+  if (!preserveScroll) {
+    els.body.replaceChildren();
+  }
 
   if (state.view === "fantasy") {
     renderFantasyHeader();
@@ -839,13 +891,35 @@ function renderTable() {
   els.tableWrap.hidden = state.filtered.length === 0;
   els.tableScrollbar.hidden = state.filtered.length === 0;
   els.empty.hidden = state.filtered.length !== 0;
-  renderVirtualRows();
+  renderVirtualRows({ scrollTop });
+  syncTableScrollPosition(scrollLeft);
+  if (activePlayerId) {
+    const activeInput = els.body.querySelector(
+      `.personal-rank-input[data-player-id="${CSS.escape(activePlayerId)}"]`,
+    );
+    activeInput?.focus({ preventScroll: true });
+  }
+  if (preserveScroll) {
+    requestAnimationFrame(() => {
+      els.tableWrap.scrollTop = scrollTop;
+      syncTableScrollPosition(scrollLeft);
+      lastRenderedScrollTop = scrollTop;
+    });
+  }
   requestAnimationFrame(updateTableScrollbar);
 }
 
 function updateTableScrollbar() {
   const table = els.tableWrap.querySelector("table");
   if (!table || els.tableWrap.hidden) {
+    els.tableScrollbar.hidden = true;
+    return;
+  }
+
+  const hasHorizontalOverflow = table.scrollWidth > els.tableWrap.clientWidth + 1;
+  els.tableScrollbar.hidden = !hasHorizontalOverflow;
+  if (!hasHorizontalOverflow) {
+    syncTableScrollPosition(0);
     return;
   }
 
@@ -920,6 +994,10 @@ function moveTableDragTo(x, y, event) {
 }
 
 function startTableDrag(event) {
+  if (isMobileViewport()) {
+    return;
+  }
+
   if (
     isInteractiveTableTarget(event.target) ||
     (event.pointerType === "mouse" && isSelectableTableTextTarget(event.target))
@@ -939,6 +1017,10 @@ function moveTableDrag(event) {
 }
 
 function startTableTouchDrag(event) {
+  if (isMobileViewport()) {
+    return;
+  }
+
   if (event.touches.length !== 1 || isInteractiveTableTarget(event.target)) {
     return;
   }
@@ -966,10 +1048,10 @@ function endTableDrag(event) {
   tableDrag.pointerId = null;
 }
 
-function applyFilters() {
+function applyFilters(options = {}) {
   filterPlayers();
   renderSummary();
-  renderTable();
+  renderTable(options);
 }
 
 function resetSorts() {
@@ -1001,18 +1083,110 @@ function closeResetDialog() {
   els.reset.focus();
 }
 
+function playerById(playerId) {
+  return state.players.find((player) => personalRankKey(player) === String(playerId));
+}
+
+function detailValue(value) {
+  return infoValue(value);
+}
+
+function detailItem(label, value) {
+  const wrapper = document.createElement("div");
+  const term = document.createElement("dt");
+  const description = document.createElement("dd");
+
+  term.textContent = label;
+  description.textContent = value;
+  wrapper.append(term, description);
+  return wrapper;
+}
+
+function playerInfoDetails(player) {
+  return [
+    ["Index", String(player.index)],
+    ["Rank", detailValue(personalRank(player))],
+    ["Team", detailValue(displayedTeam(player))],
+    ["Position", detailValue(player.position)],
+    ["Age", detailValue(player.age)],
+    ["Height", detailValue(player.height)],
+    ["Background", detailValue(player.college)],
+    ["Country", detailValue(player.country)],
+    ["Draft", detailValue(draftLabel(player))],
+    ["Experience", experienceLabel(player)],
+  ];
+}
+
+function playerFantasyDetails(player) {
+  const playerHasFantasyData = hasFantasyData(player);
+  return fantasyColumns
+    .filter((column) => !["index", "playerName"].includes(column.key))
+    .map((column) => {
+      if (column.type === "personalRank") {
+        return ["Rank", detailValue(personalRank(player))];
+      }
+      if (column.type === "team") {
+        return ["Team", detailValue(displayedTeam(player))];
+      }
+
+      return [
+        column.label,
+        detailValue(
+          formatFantasyValue(
+            fantasyValue(player, column.key),
+            column.type,
+            playerHasFantasyData && fantasyStatKeys.has(column.key),
+          ),
+        ),
+      ];
+    });
+}
+
+function openPlayerDetail(playerId) {
+  const player = playerById(playerId);
+  if (!player) {
+    return;
+  }
+
+  els.playerDetailTitle.textContent = player.playerName;
+  els.playerDetailSubtitle.textContent =
+    state.view === "fantasy" ? "Player Stats (2025-26)" : "Player Info";
+  els.playerDetailList.replaceChildren(
+    ...(state.view === "fantasy" ? playerFantasyDetails(player) : playerInfoDetails(player))
+      .map(([label, value]) => detailItem(label, value)),
+  );
+
+  if (typeof els.playerDetailDialog.showModal === "function") {
+    els.playerDetailDialog.showModal();
+    els.playerDetailClose.focus();
+  }
+}
+
+function restorePlayerDetailFocus() {
+  lastPlayerDetailTrigger?.focus({ preventScroll: true });
+  lastPlayerDetailTrigger = null;
+}
+
 function deleteSavedAppData() {
   localStorage.removeItem(PERSONAL_RANK_KEY);
   localStorage.removeItem(TEAM_OVERRIDE_KEY);
   localStorage.removeItem(THEME_KEY);
   state.personalRanks = {};
   state.teamOverrides = {};
-  applyTheme("light");
+  applyTheme(loadTheme());
   els.team.value = DEFAULT_FILTERS.team;
   setupFilters();
   resetSorts();
   closeResetDialog();
-  setExportStatus("Confirmed. Saved ranks, team edits, and theme preference were deleted.");
+  setFilterPanelOpen(false);
+  closeMobileMenu();
+  setExportStatus("");
+}
+
+function setFilterPanelOpen(isOpen) {
+  document.body.classList.toggle("filters-panel-collapsed", !isOpen);
+  els.desktopFilterToggle.setAttribute("aria-expanded", String(isOpen));
+  els.desktopFilterToggle.textContent = isOpen ? "Hide Controls" : "Show Controls";
 }
 
 function setMobileMenuOpen(isOpen) {
@@ -1041,6 +1215,14 @@ function rankedExportRows() {
 
 function rankedExportCsv() {
   return rowsToCsv(EXPORT_FIELDS, rankedExportRows());
+}
+
+function indexOverrideExportRows() {
+  return buildIndexOverrideExportRows(state.players, { personalRank });
+}
+
+function indexOverrideExportCsv() {
+  return rowsToCsv(INDEX_OVERRIDE_EXPORT_FIELDS, indexOverrideExportRows());
 }
 
 function fullExportRows() {
@@ -1298,6 +1480,16 @@ function downloadRankedCsv() {
   closeExportMenu();
 }
 
+function downloadIndexOverrideCsv() {
+  downloadTextFile(
+    indexOverrideExportCsv(),
+    INDEX_OVERRIDE_EXPORT_FILE_NAME,
+    "text/csv;charset=utf-8",
+  );
+  setExportStatus("Index CSV Exported.");
+  closeExportMenu();
+}
+
 function downloadFullCsv() {
   downloadTextFile(fullExportCsv(), FULL_CSV_EXPORT_FILE_NAME, "text/csv;charset=utf-8");
   setExportStatus("Full CSV Exported.");
@@ -1376,6 +1568,7 @@ function bindEvents() {
   els.export.addEventListener("click", toggleExportMenu);
   els.exportFile.addEventListener("click", downloadRankedCsv);
   els.exportCopy.addEventListener("click", copyRankedCsvToClipboard);
+  els.exportIndexOverride.addEventListener("click", downloadIndexOverrideCsv);
   els.exportFullCsv.addEventListener("click", downloadFullCsv);
   els.exportFullXlsx.addEventListener("click", downloadFullXlsx);
   els.exportFullJson.addEventListener("click", downloadFullJson);
@@ -1415,6 +1608,15 @@ function bindEvents() {
   els.mobileMenuToggle.addEventListener("click", () => {
     setMobileMenuOpen(!document.body.classList.contains("mobile-menu-open"));
   });
+  els.desktopFilterToggle.addEventListener("click", () => {
+    setFilterPanelOpen(document.body.classList.contains("filters-panel-collapsed"));
+  });
+  els.playerDetailDialog.addEventListener("click", (event) => {
+    if (event.target === els.playerDetailDialog) {
+      els.playerDetailDialog.close();
+    }
+  });
+  els.playerDetailDialog.addEventListener("close", restorePlayerDetailFocus);
   document.addEventListener("click", (event) => {
     scheduleStatusDismiss();
     if (!event.target.closest(".export-menu")) {
@@ -1440,6 +1642,16 @@ function bindEvents() {
       closeMobileMenu();
       els.mobileMenuToggle.focus();
     }
+  });
+
+  els.body.addEventListener("click", (event) => {
+    const button = event.target.closest(".player-detail-button");
+    if (!button) {
+      return;
+    }
+
+    lastPlayerDetailTrigger = button;
+    openPlayerDetail(button.dataset.playerId);
   });
 
   els.body.addEventListener("pointerdown", (event) => {
@@ -1475,7 +1687,7 @@ function bindEvents() {
     delete input.dataset.autofilledRank;
     input.dataset.screenStepHandled = "true";
     input.dataset.stepStartValue = input.value;
-    applyFilters();
+    applyFilters({ preserveScroll: true });
   });
 
   els.body.addEventListener("change", (event) => {
@@ -1504,7 +1716,7 @@ function bindEvents() {
 
     updatePersonalRank(input.dataset.playerId, input.value);
     delete input.dataset.autofilledRank;
-    applyFilters();
+    applyFilters({ preserveScroll: true });
   });
 
   els.body.addEventListener("focusin", (event) => {

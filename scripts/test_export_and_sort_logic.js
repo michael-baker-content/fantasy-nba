@@ -1,5 +1,6 @@
 const {
   fullExportRows,
+  indexOverrideExportRows,
   rankedExportRows,
   rowsToCsv,
   sortFantasyPlayers,
@@ -139,6 +140,11 @@ assertEqual(
 assertEqual("ranked export includes only ranked players", rankedExportRows(players, helpers), [
   { rank: 1, name: "Beta Forward", team: "BBB", position: "F" },
   { rank: 2, name: "Alpha Guard", team: "ZZZ", position: "G" },
+]);
+
+assertEqual("index override export includes stable ids", indexOverrideExportRows(players, helpers), [
+  { index: 1, player_name: "Beta Forward", player_id: "102" },
+  { index: 2, player_name: "Alpha Guard", player_id: "101" },
 ]);
 
 assertEqual(

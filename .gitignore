@@ -5,3 +5,4 @@ data/*.csv
 !data/free_agents.csv
 !data/prev_league_overrides.csv
 !data/active_likelihood_overrides.csv
+!data/index_overrides.csv

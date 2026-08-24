@@ -252,6 +252,17 @@
       .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
   }
 
+  function indexOverrideExportRows(players, helpers) {
+    return players
+      .map((player) => ({
+        index: helpers.personalRank(player),
+        player_name: player.playerName,
+        player_id: player.playerId,
+      }))
+      .filter((row) => row.index !== null)
+      .sort((a, b) => a.index - b.index || a.player_name.localeCompare(b.player_name));
+  }
+
   function fullExportRows(players, helpers) {
     return players.map((player) => ({
       rank: helpers.personalRank(player) ?? "",
@@ -331,6 +342,7 @@
     csvValue,
     rowsToCsv,
     rankedExportRows,
+    indexOverrideExportRows,
     fullExportRows,
     virtualWindow,
   };
