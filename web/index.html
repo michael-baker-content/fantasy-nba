@@ -61,27 +61,28 @@
         </label>
       </div>
 
-      <section id="controls-panel" class="filters" aria-label="Player filters and actions">
-        <label class="field search-field">
+      <section id="controls-panel" class="filters" aria-labelledby="controls-heading">
+        <h2 id="controls-heading" class="sr-only">Player filters and actions</h2>
+        <label class="field search-field" for="search-input">
           <span>Search</span>
           <input id="search-input" type="search" placeholder="Player Name">
         </label>
 
-        <label class="field">
+        <label class="field" for="team-filter">
           <span>Team</span>
           <select id="team-filter">
             <option value="">All Teams</option>
           </select>
         </label>
 
-        <label class="field">
+        <label class="field" for="position-filter">
           <span>Position</span>
           <select id="position-filter">
             <option value="">All Positions</option>
           </select>
         </label>
 
-        <label class="field">
+        <label class="field" for="experience-filter">
           <span>Experience</span>
           <select id="experience-filter">
             <option value="">Default</option>
@@ -90,7 +91,7 @@
           </select>
         </label>
 
-        <label class="field">
+        <label class="field" for="sort-select">
           <span>Sort</span>
           <select id="sort-select">
             <option value="index-asc">Default</option>
@@ -130,7 +131,8 @@
 
       </section>
 
-      <section class="table-section" aria-label="Filtered players">
+      <section class="table-section" aria-labelledby="results-heading">
+        <h2 id="results-heading" class="sr-only">Filtered players</h2>
         <div id="loading-state" class="status-line">Loading Players...</div>
         <div class="table-wrap" hidden>
           <table>
@@ -161,7 +163,7 @@
       <div class="player-detail-card">
         <div class="player-detail-header">
           <div>
-            <h2 id="player-detail-title"></h2>
+            <h2 id="player-detail-title">Player Details</h2>
             <p id="player-detail-subtitle"></p>
           </div>
           <form method="dialog">

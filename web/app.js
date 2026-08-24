@@ -640,14 +640,15 @@ function appendTextCell(row, value, className = "") {
 function appendPlayerCell(row, player) {
   const cell = document.createElement("td");
   const button = document.createElement("button");
+  const detailLabel = `Click for expanded details for ${player.playerName}`;
 
   cell.className = "col-player player-cell";
-  cell.title = player.playerName;
   button.className = "player-detail-button";
   button.type = "button";
   button.textContent = player.playerName;
+  button.title = detailLabel;
   button.dataset.playerId = personalRankKey(player);
-  button.setAttribute("aria-label", `${player.playerName} details`);
+  button.setAttribute("aria-label", detailLabel);
   cell.append(button);
   row.append(cell);
 }
