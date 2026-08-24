@@ -352,7 +352,7 @@ def fantasy_fields(previous_total_player: dict[str, object] | None) -> dict[str,
 
 def normalize_team_abbreviation(value: object) -> str:
     abbreviation = str(value or "").strip().upper()
-    return abbreviation if abbreviation else "FA"
+    return abbreviation if abbreviation else "NA"
 
 
 def nba_player_rows(
@@ -426,7 +426,7 @@ def automatic_free_agent_rows(
             continue
 
         score = free_agent_score(previous_player)
-        reason = "recent NBA production discounted for free agency"
+        reason = "recent NBA production discounted for not available status"
         if str(player_id) in likelihood_overrides:
             score = clamp_score(as_float(likelihood_overrides[str(player_id)]))
             reason = "manual override"
@@ -436,12 +436,12 @@ def automatic_free_agent_rows(
         previous_total_player = previous_totals_by_id.get(player_id)
         row = {
             "player_name": str(previous_player["PLAYER_NAME"]),
-            "team_abbreviation": "FA",
+            "team_abbreviation": "NA",
             "position": str(previous_index.get("POSITION") or "").strip(),
             "player_id": player_id,
             "experience": "Veteran",
             "active_likelihood": clamp_score(score),
-            "roster_bucket": "free_agent_auto",
+            "roster_bucket": "not_available_auto",
             "likelihood_reason": reason,
             **review_fields(previous_player, previous_advanced_player, league_avg_netrtg),
             **fantasy_fields(previous_total_player),
@@ -472,15 +472,15 @@ def manual_free_agent_rows() -> list[dict[str, object]]:
             rows.append(
                 {
                     "player_name": player_name,
-                    "team_abbreviation": "FA",
+                    "team_abbreviation": normalize_team_abbreviation(row.get("team_abbreviation")),
                     "position": (row.get("position") or "").strip(),
                     "player_id": int((row.get("player_id") or "0").strip() or 0),
                     "experience": normalize_experience(row.get("experience") or "Veteran"),
                     "active_likelihood": clamp_score(
                         as_float(row.get("active_likelihood"), default=0.35)
                     ),
-                    "roster_bucket": "free_agent_manual",
-                    "likelihood_reason": "manual free agent input",
+                    "roster_bucket": "not_available_manual",
+                    "likelihood_reason": "manual not available input",
                     "index_score": 0,
                     **review_fields(None),
                     **fantasy_fields(None),

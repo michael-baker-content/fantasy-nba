@@ -4,6 +4,7 @@ const {
   normalizeSearchText,
   searchablePlayerText,
   experienceValue,
+  virtualWindow,
 } = require("../web/app-logic.js");
 
 const PLAYER_SEARCH_ALIASES = {
@@ -38,5 +39,15 @@ assertEqual(
   true,
 );
 assertEqual("accent-insensitive search", normalizeSearchText("Jokić"), "jokic");
+
+const firstWindow = virtualWindow(644, 0, 450, 45, 12);
+assertEqual("virtual window starts at top", firstWindow.start, 0);
+assertEqual("virtual window renders a buffered first page", firstWindow.end, 23);
+assertEqual("virtual window has no top spacer at top", firstWindow.beforeHeight, 0);
+
+const middleWindow = virtualWindow(644, 4500, 450, 45, 12);
+assertEqual("virtual window keeps overscan above scroll point", middleWindow.start, 88);
+assertEqual("virtual window keeps overscan below viewport", middleWindow.end, 123);
+assertEqual("virtual window top spacer height", middleWindow.beforeHeight, 3960);
 
 console.log("web ui logic ok");

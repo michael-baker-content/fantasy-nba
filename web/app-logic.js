@@ -74,6 +74,59 @@
     );
   }
 
+  function seedPersonalRanks(rankMap, players, targetCount, playerId = (player) => player.playerId) {
+    const normalizedRanks = normalizePersonalRanks(rankMap);
+    const rankedIds = new Set(Object.keys(normalizedRanks));
+    const seededRanks = { ...normalizedRanks };
+    const target = Math.min(
+      Math.max(0, Math.floor(Number(targetCount)) || 0),
+      Array.isArray(players) ? players.length : 0,
+    );
+    let nextRank = normalizedRankEntries(seededRanks).length + 1;
+
+    if (!Array.isArray(players) || nextRank > target) {
+      return seededRanks;
+    }
+
+    [...players]
+      .sort((a, b) => Number(a.index) - Number(b.index))
+      .some((player) => {
+        const id = String(playerId(player));
+
+        if (!id || rankedIds.has(id)) {
+          return false;
+        }
+
+        seededRanks[id] = nextRank;
+        rankedIds.add(id);
+        nextRank += 1;
+
+        return nextRank > target;
+      });
+
+    return seededRanks;
+  }
+
+  function screenStepRankValue(currentRank, nativeStepValue, rankCount) {
+    const current = Math.floor(Number(currentRank));
+    const nativeValue = Math.floor(Number(nativeStepValue));
+    const maxRank = Math.max(1, Math.floor(Number(rankCount)) || 1);
+
+    if (!Number.isFinite(current) || current <= 0 || !Number.isFinite(nativeValue)) {
+      return nativeStepValue;
+    }
+
+    if (nativeValue > current) {
+      return Math.max(1, current - 1);
+    }
+
+    if (nativeValue < current) {
+      return Math.min(maxRank, current + 1);
+    }
+
+    return current;
+  }
+
   function comparePersonalRank(a, b, personalRank) {
     const rankA = personalRank(a);
     const rankB = personalRank(b);
@@ -230,6 +283,28 @@
     }));
   }
 
+  function virtualWindow(totalRows, scrollTop, viewportHeight, rowHeight, overscan = 8) {
+    const safeTotalRows = Math.max(0, Number(totalRows) || 0);
+    const safeRowHeight = Math.max(1, Number(rowHeight) || 1);
+    const safeViewportHeight = Math.max(0, Number(viewportHeight) || 0);
+    const safeOverscan = Math.max(0, Number(overscan) || 0);
+    const maxStart = Math.max(0, safeTotalRows - 1);
+    const firstVisible = Math.min(
+      maxStart,
+      Math.max(0, Math.floor((Number(scrollTop) || 0) / safeRowHeight)),
+    );
+    const visibleRows = Math.ceil(safeViewportHeight / safeRowHeight);
+    const start = Math.max(0, firstVisible - safeOverscan);
+    const end = Math.min(safeTotalRows, firstVisible + visibleRows + safeOverscan + 1);
+
+    return {
+      start,
+      end,
+      beforeHeight: start * safeRowHeight,
+      afterHeight: Math.max(0, (safeTotalRows - end) * safeRowHeight),
+    };
+  }
+
   const api = {
     EMPTY_COUNTING_STAT,
     EMPTY_PERCENTAGE_STAT,
@@ -242,6 +317,8 @@
     normalizePersonalRanks,
     nextPersonalRank,
     updatePersonalRank,
+    seedPersonalRanks,
+    screenStepRankValue,
     comparePersonalRank,
     sortPlayers,
     fantasyValue,
@@ -252,6 +329,7 @@
     rowsToCsv,
     rankedExportRows,
     fullExportRows,
+    virtualWindow,
   };
 
   if (typeof module === "object" && module.exports) {

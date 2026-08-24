@@ -33,16 +33,26 @@
         </div>
       </header>
 
-      <button
-        id="mobile-menu-toggle"
-        class="mobile-menu-toggle"
-        type="button"
-        aria-controls="mobile-menu"
-        aria-expanded="false"
-      >
-        <span class="mobile-menu-icon" aria-hidden="true">&#9776;</span>
-        <span class="mobile-menu-label">Menu</span>
-      </button>
+      <div class="menu-row">
+        <button
+          id="mobile-menu-toggle"
+          class="mobile-menu-toggle"
+          type="button"
+          aria-controls="mobile-menu"
+          aria-expanded="false"
+        >
+          <span class="mobile-menu-icon" aria-hidden="true">&#9776;</span>
+          <span class="mobile-menu-label">Menu</span>
+        </button>
+        <label class="theme-toggle">
+          <span class="theme-text">Dark Mode</span>
+          <span class="theme-symbols" aria-hidden="true">☀️/🌙</span>
+          <input id="theme-toggle" type="checkbox" role="switch" aria-label="Dark Mode">
+          <span class="switch-track" aria-hidden="true">
+            <span class="switch-thumb"></span>
+          </span>
+        </label>
+      </div>
 
       <nav class="view-tabs" aria-label="Explorer views">
         <button class="view-tab is-active" type="button" data-view="players" aria-current="page">Player Outlook</button>
@@ -105,6 +115,7 @@
         </div>
 
         <div class="action-buttons">
+          <button id="seed-button" class="secondary-button" type="button">Seed</button>
           <div class="export-menu">
             <button
               id="export-button"
@@ -126,16 +137,8 @@
           </div>
           <button id="top-button" class="secondary-button" type="button">Top</button>
           <button id="reset-button" class="secondary-button" type="button">Reset</button>
-          <label class="theme-toggle">
-            <span class="theme-text">Dark Mode</span>
-            <span class="theme-symbols" aria-hidden="true">☀️/🌙</span>
-            <input id="theme-toggle" type="checkbox" role="switch" aria-label="Dark Mode">
-            <span class="switch-track" aria-hidden="true">
-              <span class="switch-thumb"></span>
-            </span>
-          </label>
-          <span id="export-status" class="sr-only" aria-live="polite"></span>
         </div>
+        <span id="export-status" class="action-status" aria-live="polite"></span>
 
       </section>
 

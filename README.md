@@ -47,7 +47,7 @@ Three optional CSV files live in `data/`:
 
 - `experience_overrides.csv`: use this when a player's experience value should be forced to `Veteran` or `Rookie`.
 - `active_likelihood_overrides.csv`: use this when news, injury context, or roster knowledge should override the automatic likelihood score.
-- `free_agents.csv`: use this to include additional unsigned players who are still plausible NBA players.
+- `free_agents.csv`: use this to include additional unsigned players who are still plausible NBA players. Use `NA` (`Not Available`) for players whose team is not available.
 
 The script also automatically adds free-agent candidates when a player appeared in the previous season's NBA stats feed, is not on the upcoming-season roster feed, and clears a modest recent-playing-time threshold.
 
@@ -96,7 +96,7 @@ http://127.0.0.1:8765/web/
 
 The explorer reads the generated browser data and supports search, team, position, Experience, minimum likelihood, and sorting filters. Experience uses `Veteran` or `Rookie`, with `Default` showing both. Player search is accent-insensitive and includes curated aliases such as `SGA`, `Wemby`, `Joker`, and `Greek Freak`. The Sort dropdown changes by view: Player outlook shows roster-oriented sorts with A-to-Z and Z-to-A text options, while Fantasy totals shows fantasy stat categories with both sort directions. Single-position filters are inclusive, so `F` includes `F`, `F-C`, and `G-F`; combo-position filters remain exact, so `F-C` does not include plain `F`.
 
-The `Rank` field is saved in browser localStorage, keyed by NBA player ID. Personal ranks stay local to the browser, are kept in contiguous integer order with no gaps, and are not written back to the CSV yet.
+The `Rank` field is saved in browser localStorage, keyed by NBA player ID. Personal ranks stay local to the browser, are kept in contiguous integer order with no gaps, and are not written back to the CSV yet. The `Seed` button can fill empty ranks through a chosen target number using the default index order while preserving ranks already entered.
 
 Team edits in the player outlook view are also saved in browser localStorage, keyed by NBA player ID. The original CSV team remains the default, and switching a player back to that default removes the override.
 
@@ -107,11 +107,11 @@ The generator also writes `web/players-data.js`, so the explorer can be opened d
 The explorer has two views:
 
 - `Player outlook`: the main player universe with active likelihood and team context.
-- `Fantasy totals`: prior-season fantasy totals, including FG%, FT%, 3PM, points, rebounds, assists, steals, blocks, and turnovers. FG/FT makes and attempts are stored in browser data for later use but are not displayed.
+- `Fantasy totals`: prior-season fantasy totals by player and team, including FG%, FT%, 3PM, points, rebounds, assists, steals, blocks, and turnovers. FG/FT makes and attempts are stored in browser data for later use but are not displayed.
 
 In the fantasy totals view, players with no prior-season stat data keep fantasy fields blank. If a player has any fantasy stat data, missing counting stats display as `0` and missing percentage fields display as an em dash.
 
-The responsive layout has desktop, laptop, tablet, and mobile treatments. Desktop uses a 1280px max-width shell with filters arranged to fit that width cleanly, placing Sort, minimum Likelihood, and action buttons together on the second filter row. Laptop view uses a four-column filter grid with actions and dark mode sharing the third row to avoid stranded empty space. Tablet uses a two-column filter layout with Sort and Likelihood paired when space allows. On narrow mobile screens, player search and results are visible by default, while views, filters, the likelihood slider, export, top, reset, and a compact sun/moon theme toggle move into a slide-down menu. The mobile player outlook table keeps the index column as a compact `#` cue for default sorting but hides the index values to save space.
+The responsive layout has desktop, laptop, tablet, and mobile treatments. Desktop uses a 1280px max-width shell with filters arranged to fit that width cleanly, placing Sort, minimum Likelihood, and action buttons together on the second filter row. Laptop view uses a four-column filter grid with actions using the available row space to avoid stranded empty space. Tablet uses a two-column filter layout with Sort and Likelihood paired when space allows. On narrow mobile screens, player search and results are visible by default, while views, filters, the likelihood slider, export, top, reset, and seed controls move into a slide-down menu. The theme toggle stays in the top menu row on the right. The mobile player outlook table keeps the index column as a compact `#` cue for default sorting but hides the index values to save space.
 
 Wide tables include a sticky horizontal scrollbar beneath the visible results so columns can be scrolled left and right without jumping to the final row. Both table views also support touch-drag horizontal scrolling directly on the table area, including the mobile Fantasy totals view. The `Rank` and `Player` columns stay pinned while scrolling horizontally, and the fantasy totals view uses a tighter Player column to leave more room for stat categories.
 
@@ -202,7 +202,7 @@ This project now includes:
 - A repeatable NBA.com/stats data pipeline through `nba_api`.
 - A clean player CSV with active likelihood and ranked index.
 - A review CSV with scoring inputs and audit fields.
-- Manual override files for Experience, likelihood, and extra free agents.
+- Manual override files for Experience, likelihood, and extra not-available players.
 - A static web explorer with filters, sorting, a minimum likelihood slider, and local personal ranks.
 - A Material-inspired responsive UI using Roboto, native controls, and accessible table states.
 - A no-network sync script for refreshing browser data from the generated CSV.

@@ -63,7 +63,7 @@ Keep score formulas auditable. Save the score inputs in the review CSV so a surp
 Useful ranking safeguards:
 
 - Weight unstable metrics by sample size.
-- Discount free agents because they still need a roster path.
+- Mark unsigned or unavailable-team players with `NA` (`Not Available`) and discount them because they still need a roster path.
 - Cap or dampen developmental/supplemental players.
 - Use manual overrides for news, injuries, and context that raw stats cannot know.
 

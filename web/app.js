@@ -37,6 +37,8 @@ const {
   matchesPositionFilter,
   normalizePersonalRanks,
   nextPersonalRank: nextPersonalRankFromMap,
+  seedPersonalRanks,
+  screenStepRankValue,
   updatePersonalRank: updatePersonalRankMap,
   sortPlayers: sortPlayerList,
   sortFantasyPlayers: sortFantasyPlayerList,
@@ -45,7 +47,12 @@ const {
   rowsToCsv,
   rankedExportRows: buildRankedExportRows,
   fullExportRows: buildFullExportRows,
+  virtualWindow,
 } = window.NbaRankerLogic;
+const DESKTOP_VIRTUAL_ROW_HEIGHT = 52;
+const MOBILE_VIRTUAL_ROW_HEIGHT = 46;
+const VIRTUAL_OVERSCAN_ROWS = 12;
+const STATUS_DISMISS_DELAY_MS = 1000;
 const CRC32_TABLE = Array.from({ length: 256 }, (_, index) => {
   let value = index;
 
@@ -146,6 +153,7 @@ const els = {
   minLikelihood: document.querySelector("#min-likelihood"),
   rangeOutput: document.querySelector("#range-output"),
   reset: document.querySelector("#reset-button"),
+  seed: document.querySelector("#seed-button"),
   export: document.querySelector("#export-button"),
   exportMenu: document.querySelector("#export-menu"),
   exportFile: document.querySelector("#export-file-button"),
@@ -169,6 +177,7 @@ const fantasyColumns = [
   { key: "index", label: "Index", type: "number", direction: "asc", className: "col-index" },
   { key: "personalRank", label: "Rank", type: "personalRank", direction: "asc", className: "col-rank" },
   { key: "playerName", label: "Player", type: "text", direction: "asc", className: "col-player" },
+  { key: "team", label: "Team", type: "team", className: "col-team", sortable: false },
   { key: "fgPct", label: "FG%", type: "percent", direction: "desc" },
   { key: "ftPct", label: "FT%", type: "percent", direction: "desc" },
   { key: "fg3m", label: "3PM", type: "number", direction: "desc" },
@@ -198,18 +207,22 @@ function fantasySortLabel(column, direction) {
   return `${label} ${direction === "asc" ? "Low To High" : "High To Low"}`;
 }
 
-const fantasySortOptions = fantasyColumns.flatMap((column) => [
-  {
-    value: `${column.key}:asc`,
-    label: fantasySortLabel(column, "asc"),
-  },
-  {
-    value: `${column.key}:desc`,
-    label: fantasySortLabel(column, "desc"),
-  },
-]);
+const fantasySortOptions = fantasyColumns
+  .filter((column) => column.sortable !== false)
+  .flatMap((column) => [
+    {
+      value: `${column.key}:asc`,
+      label: fantasySortLabel(column, "asc"),
+    },
+    {
+      value: `${column.key}:desc`,
+      label: fantasySortLabel(column, "desc"),
+    },
+  ]);
 
 let syncingTableScroll = false;
+let lastRenderedScrollTop = 0;
+let statusDismissTimer = null;
 const tableDrag = {
   active: false,
   dragging: false,
@@ -229,6 +242,12 @@ const playerColumns = [
   { label: "Experience", className: "col-experience" },
   { label: "Likelihood", className: "col-likelihood" },
 ];
+
+function virtualRowHeight() {
+  return window.matchMedia("(max-width: 640px)").matches
+    ? MOBILE_VIRTUAL_ROW_HEIGHT
+    : DESKTOP_VIRTUAL_ROW_HEIGHT;
+}
 
 function parseCsv(text) {
   const rows = [];
@@ -372,7 +391,7 @@ function teamOptions() {
   return uniqueSorted([
     ...state.players.map((player) => player.team),
     ...Object.values(state.teamOverrides),
-    "FA",
+    "NA",
   ]);
 }
 
@@ -397,13 +416,73 @@ function personalRank(player) {
   return Number.isFinite(rank) && rank > 0 ? rank : null;
 }
 
+function personalRankById(playerId) {
+  const value = state.personalRanks[String(playerId)];
+  const rank = Number(value);
+  return Number.isFinite(rank) && rank > 0 ? rank : null;
+}
+
 function nextPersonalRank() {
   return nextPersonalRankFromMap(state.personalRanks);
+}
+
+function personalRankCount() {
+  return Math.max(0, nextPersonalRank() - 1);
 }
 
 function updatePersonalRank(playerId, value) {
   state.personalRanks = updatePersonalRankMap(state.personalRanks, playerId, value);
   savePersonalRanks();
+}
+
+function seedRanks() {
+  closeExportMenu();
+  closeMobileMenu();
+
+  const currentCount = personalRankCount();
+  const defaultCount = Math.min(state.players.length, currentCount > 0 ? currentCount + 20 : 20);
+  const response = window.prompt(
+    "Seed ranks through what number? Existing ranks stay in place; empty ranks are filled by default index order.",
+    String(defaultCount),
+  );
+
+  if (response === null) {
+    return;
+  }
+
+  const targetCount = Math.floor(Number(response));
+  if (!Number.isFinite(targetCount) || targetCount < 1) {
+    setExportStatus("Enter a positive whole number to seed ranks.");
+    return;
+  }
+
+  const cappedTargetCount = Math.min(targetCount, state.players.length);
+  const before = JSON.stringify(normalizePersonalRanks(state.personalRanks));
+  state.personalRanks = seedPersonalRanks(state.personalRanks, state.players, cappedTargetCount);
+  savePersonalRanks();
+  applyFilters();
+
+  if (JSON.stringify(state.personalRanks) === before) {
+    setExportStatus(`Ranks are already seeded through ${cappedTargetCount}.`);
+  } else {
+    setExportStatus(`Seeded ranks through ${cappedTargetCount}.`);
+  }
+}
+
+function movePersonalRankByScreenStep(input, direction) {
+  const currentRank = personalRankById(input.dataset.playerId);
+  if (currentRank === null) {
+    return false;
+  }
+
+  const nativeStepValue = direction === "up" ? currentRank + 1 : currentRank - 1;
+  const nextRank = screenStepRankValue(currentRank, nativeStepValue, personalRankCount());
+  input.value = String(nextRank);
+  updatePersonalRank(input.dataset.playerId, input.value);
+  delete input.dataset.autofilledRank;
+  input.dataset.stepStartValue = input.value;
+  applyFilters();
+  return true;
 }
 
 function uniqueSorted(values) {
@@ -623,6 +702,10 @@ function fantasyRow(player) {
       appendTextCell(tr, player.playerName, "col-player player-cell");
       return;
     }
+    if (column.type === "team") {
+      appendTextCell(tr, displayedTeam(player), column.className);
+      return;
+    }
 
     appendTextCell(
       tr,
@@ -669,6 +752,12 @@ function renderFantasyHeader() {
       header.className = column.className;
     }
     header.setAttribute("aria-sort", active ? sortDirectionText(state.fantasySort.direction) : "none");
+    if (column.sortable === false) {
+      header.textContent = column.label;
+      row.append(header);
+      return;
+    }
+
     button.className = `table-sort-button${active ? " is-active" : ""}`;
     button.type = "button";
     button.dataset.sortKey = column.key;
@@ -700,21 +789,66 @@ function renderSummary() {
   els.averageLikelihood.textContent = average.toFixed(2);
 }
 
+function visibleColumnCount() {
+  return state.view === "fantasy" ? fantasyColumns.length : playerColumns.length;
+}
+
+function virtualSpacerRow(height) {
+  const row = document.createElement("tr");
+  const cell = document.createElement("td");
+
+  row.className = "virtual-spacer-row";
+  cell.colSpan = visibleColumnCount();
+  cell.style.height = `${height}px`;
+  row.append(cell);
+
+  return row;
+}
+
+function renderVirtualRows() {
+  if (els.tableWrap.hidden) {
+    return;
+  }
+
+  const windowedRows = virtualWindow(
+    state.filtered.length,
+    els.tableWrap.scrollTop,
+    els.tableWrap.clientHeight,
+    virtualRowHeight(),
+    VIRTUAL_OVERSCAN_ROWS,
+  );
+  const rowBuilder = state.view === "fantasy" ? fantasyRow : playerRow;
+  const rows = [];
+
+  if (windowedRows.beforeHeight > 0) {
+    rows.push(virtualSpacerRow(windowedRows.beforeHeight));
+  }
+
+  rows.push(...state.filtered.slice(windowedRows.start, windowedRows.end).map(rowBuilder));
+
+  if (windowedRows.afterHeight > 0) {
+    rows.push(virtualSpacerRow(windowedRows.afterHeight));
+  }
+
+  els.body.replaceChildren(...rows);
+}
+
 function renderTable() {
   els.tableWrap.dataset.view = state.view;
   syncSortSelectOptions();
+  els.tableWrap.scrollTop = 0;
+  lastRenderedScrollTop = 0;
 
   if (state.view === "fantasy") {
     renderFantasyHeader();
-    els.body.replaceChildren(...state.filtered.map(fantasyRow));
   } else {
     renderPlayerHeader();
-    els.body.replaceChildren(...state.filtered.map(playerRow));
   }
 
   els.tableWrap.hidden = state.filtered.length === 0;
   els.tableScrollbar.hidden = state.filtered.length === 0;
   els.empty.hidden = state.filtered.length !== 0;
+  renderVirtualRows();
   requestAnimationFrame(updateTableScrollbar);
 }
 
@@ -749,6 +883,15 @@ function isInteractiveTableTarget(target) {
   return Boolean(target.closest("button, input, select, textarea, a"));
 }
 
+function hasActiveTextSelection() {
+  const selection = window.getSelection?.();
+  return Boolean(selection && !selection.isCollapsed && selection.toString());
+}
+
+function isSelectableTableTextTarget(target) {
+  return Boolean(target.closest("td, th"));
+}
+
 function startTableDragAt(x, y, pointerId = null) {
   tableDrag.active = true;
   tableDrag.dragging = false;
@@ -760,6 +903,11 @@ function startTableDragAt(x, y, pointerId = null) {
 
 function moveTableDragTo(x, y, event) {
   if (!tableDrag.active) {
+    return;
+  }
+
+  if (hasActiveTextSelection()) {
+    endTableDrag();
     return;
   }
 
@@ -781,7 +929,10 @@ function moveTableDragTo(x, y, event) {
 }
 
 function startTableDrag(event) {
-  if (isInteractiveTableTarget(event.target)) {
+  if (
+    isInteractiveTableTarget(event.target) ||
+    (event.pointerType === "mouse" && isSelectableTableTextTarget(event.target))
+  ) {
     return;
   }
 
@@ -876,6 +1027,7 @@ function deleteSavedAppData() {
   setupFilters();
   resetSorts();
   closeResetDialog();
+  setExportStatus("Confirmed. Saved ranks, team edits, and theme preference were deleted.");
 }
 
 function setMobileMenuOpen(isOpen) {
@@ -1095,7 +1247,22 @@ function fullExportXlsx() {
 }
 
 function setExportStatus(message) {
+  if (statusDismissTimer) {
+    clearTimeout(statusDismissTimer);
+    statusDismissTimer = null;
+  }
   els.exportStatus.textContent = message;
+}
+
+function scheduleStatusDismiss() {
+  if (!els.exportStatus.textContent || statusDismissTimer) {
+    return;
+  }
+
+  statusDismissTimer = window.setTimeout(() => {
+    els.exportStatus.textContent = "";
+    statusDismissTimer = null;
+  }, STATUS_DISMISS_DELAY_MS);
 }
 
 function setExportMenuOpen(isOpen, focusFirstItem = false) {
@@ -1221,6 +1388,7 @@ function bindEvents() {
     closeResetDialog();
   });
   els.deleteSavedData.addEventListener("click", deleteSavedAppData);
+  els.seed.addEventListener("click", seedRanks);
   els.export.addEventListener("click", toggleExportMenu);
   els.exportFile.addEventListener("click", downloadRankedCsv);
   els.exportCopy.addEventListener("click", copyRankedCsvToClipboard);
@@ -1229,9 +1397,15 @@ function bindEvents() {
   els.exportFullJson.addEventListener("click", downloadFullJson);
   els.top.addEventListener("click", scrollResultsToTop);
   els.tableWrap.addEventListener("scroll", () => {
+    scheduleStatusDismiss();
     syncHorizontalScroll(els.tableWrap, els.tableScrollbar);
+    if (Math.abs(els.tableWrap.scrollTop - lastRenderedScrollTop) >= virtualRowHeight() / 2) {
+      lastRenderedScrollTop = els.tableWrap.scrollTop;
+      renderVirtualRows();
+    }
   });
   els.tableScrollbar.addEventListener("scroll", () => {
+    scheduleStatusDismiss();
     syncHorizontalScroll(els.tableScrollbar, els.tableWrap);
   });
   els.tableWrap.addEventListener("pointerdown", startTableDrag);
@@ -1243,7 +1417,10 @@ function bindEvents() {
   els.tableWrap.addEventListener("touchmove", moveTableTouchDrag, { passive: false });
   els.tableWrap.addEventListener("touchend", endTableDrag);
   els.tableWrap.addEventListener("touchcancel", endTableDrag);
-  window.addEventListener("resize", updateTableScrollbar);
+  window.addEventListener("resize", () => {
+    renderVirtualRows();
+    updateTableScrollbar();
+  });
   els.themeToggle.addEventListener("change", () => {
     const theme = els.themeToggle.checked ? "dark" : "light";
     applyTheme(theme);
@@ -1253,10 +1430,15 @@ function bindEvents() {
     setMobileMenuOpen(!document.body.classList.contains("mobile-menu-open"));
   });
   document.addEventListener("click", (event) => {
+    scheduleStatusDismiss();
     if (!event.target.closest(".export-menu")) {
       closeExportMenu();
     }
   });
+  document.addEventListener("input", scheduleStatusDismiss);
+  document.addEventListener("keydown", scheduleStatusDismiss);
+  document.addEventListener("wheel", scheduleStatusDismiss, { passive: true });
+  document.addEventListener("touchstart", scheduleStatusDismiss, { passive: true });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") {
       return;
@@ -1272,6 +1454,42 @@ function bindEvents() {
       closeMobileMenu();
       els.mobileMenuToggle.focus();
     }
+  });
+
+  els.body.addEventListener("pointerdown", (event) => {
+    const input = event.target.closest(".personal-rank-input");
+    if (!input) {
+      return;
+    }
+
+    input.dataset.stepStartValue = input.value.trim();
+  });
+
+  els.body.addEventListener("input", (event) => {
+    const input = event.target.closest(".personal-rank-input");
+    if (!input || event.inputType) {
+      return;
+    }
+
+    const stepStartValue = Number(input.dataset.stepStartValue);
+    const nativeStepValue = Number(input.value);
+    if (
+      !Number.isFinite(stepStartValue) ||
+      !Number.isFinite(nativeStepValue) ||
+      Math.abs(nativeStepValue - stepStartValue) !== 1
+    ) {
+      input.dataset.stepStartValue = input.value.trim();
+      return;
+    }
+
+    input.value = String(
+      screenStepRankValue(stepStartValue, nativeStepValue, personalRankCount()),
+    );
+    updatePersonalRank(input.dataset.playerId, input.value);
+    delete input.dataset.autofilledRank;
+    input.dataset.screenStepHandled = "true";
+    input.dataset.stepStartValue = input.value;
+    applyFilters();
   });
 
   els.body.addEventListener("change", (event) => {
@@ -1293,6 +1511,11 @@ function bindEvents() {
       return;
     }
 
+    if (input.dataset.screenStepHandled === "true") {
+      delete input.dataset.screenStepHandled;
+      return;
+    }
+
     updatePersonalRank(input.dataset.playerId, input.value);
     delete input.dataset.autofilledRank;
     applyFilters();
@@ -1310,6 +1533,7 @@ function bindEvents() {
       updatePersonalRank(input.dataset.playerId, input.value);
     }
 
+    input.dataset.stepStartValue = input.value.trim();
     requestAnimationFrame(() => input.select());
   });
 
@@ -1324,11 +1548,19 @@ function bindEvents() {
 
   els.body.addEventListener("keydown", (event) => {
     const input = event.target.closest(".personal-rank-input");
-    if (!input || event.key !== "Enter") {
+    if (!input) {
       return;
     }
 
-    input.blur();
+    if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+      event.preventDefault();
+      movePersonalRankByScreenStep(input, event.key === "ArrowUp" ? "up" : "down");
+      return;
+    }
+
+    if (event.key === "Enter") {
+      input.blur();
+    }
   });
 
   els.head.addEventListener("click", (event) => {
