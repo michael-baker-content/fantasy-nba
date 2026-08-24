@@ -31,6 +31,21 @@ const FULL_EXPORT_FIELDS = [
   "fantasy_blocks",
   "fantasy_turnovers",
 ];
+const {
+  normalizeSearchText,
+  searchablePlayerText: buildSearchablePlayerText,
+  matchesPositionFilter,
+  normalizePersonalRanks,
+  nextPersonalRank: nextPersonalRankFromMap,
+  updatePersonalRank: updatePersonalRankMap,
+  sortPlayers: sortPlayerList,
+  sortFantasyPlayers: sortFantasyPlayerList,
+  hasFantasyData,
+  formatFantasyValue,
+  rowsToCsv,
+  rankedExportRows: buildRankedExportRows,
+  fullExportRows: buildFullExportRows,
+} = window.NbaRankerLogic;
 const CRC32_TABLE = Array.from({ length: 256 }, (_, index) => {
   let value = index;
 
@@ -40,8 +55,6 @@ const CRC32_TABLE = Array.from({ length: 256 }, (_, index) => {
 
   return value >>> 0;
 });
-const EMPTY_COUNTING_STAT = "0";
-const EMPTY_PERCENTAGE_STAT = "—";
 const PLAYER_SEARCH_ALIASES = {
   "Anthony Edwards": ["Ant", "Ant-Man"],
   "Bam Adebayo": ["Bam"],
@@ -270,19 +283,8 @@ function toOptionalNumber(value) {
   return Number.isFinite(number) ? number : null;
 }
 
-function normalizeSearchText(value) {
-  return String(value)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
-
-function playerSearchAliases(playerName) {
-  return PLAYER_SEARCH_ALIASES[playerName] || [];
-}
-
 function searchablePlayerText(playerName) {
-  return normalizeSearchText([playerName, ...playerSearchAliases(playerName)].join(" "));
+  return buildSearchablePlayerText(playerName, PLAYER_SEARCH_ALIASES);
 }
 
 function toPlayer(row) {
@@ -395,47 +397,12 @@ function personalRank(player) {
   return Number.isFinite(rank) && rank > 0 ? rank : null;
 }
 
-function normalizedRankEntries(rankMap) {
-  return Object.entries(rankMap)
-    .map(([playerId, rank]) => [String(playerId), Number(rank)])
-    .filter(([, rank]) => Number.isFinite(rank) && rank > 0)
-    .sort(([idA, rankA], [idB, rankB]) => rankA - rankB || idA.localeCompare(idB));
-}
-
-function normalizePersonalRanks(rankMap) {
-  return Object.fromEntries(
-    normalizedRankEntries(rankMap).map(([playerId], index) => [playerId, index + 1]),
-  );
-}
-
-function rankedPlayerIdsWithout(playerId) {
-  return normalizedRankEntries(state.personalRanks)
-    .map(([rankedPlayerId]) => rankedPlayerId)
-    .filter((rankedPlayerId) => rankedPlayerId !== String(playerId));
+function nextPersonalRank() {
+  return nextPersonalRankFromMap(state.personalRanks);
 }
 
 function updatePersonalRank(playerId, value) {
-  const cleaned = value.trim();
-  const remainingIds = rankedPlayerIdsWithout(playerId);
-
-  if (!cleaned) {
-    state.personalRanks = Object.fromEntries(
-      remainingIds.map((rankedPlayerId, index) => [rankedPlayerId, index + 1]),
-    );
-    savePersonalRanks();
-    return;
-  }
-
-  const requestedRank = Math.floor(Number(cleaned));
-  if (!Number.isFinite(requestedRank) || requestedRank <= 0) {
-    return;
-  }
-
-  const insertIndex = Math.min(requestedRank, remainingIds.length + 1) - 1;
-  remainingIds.splice(insertIndex, 0, String(playerId));
-  state.personalRanks = Object.fromEntries(
-    remainingIds.map((rankedPlayerId, index) => [rankedPlayerId, index + 1]),
-  );
+  state.personalRanks = updatePersonalRankMap(state.personalRanks, playerId, value);
   savePersonalRanks();
 }
 
@@ -453,11 +420,11 @@ function fillOptions(select, options) {
 }
 
 function experienceValue(player) {
-  return player.experience.toLowerCase() === "rookie" ? "rookie" : "veteran";
+  return window.NbaRankerLogic.experienceValue(player.experience);
 }
 
 function experienceLabel(player) {
-  return player.experience.toLowerCase() === "rookie" ? "Rookie" : "Veteran";
+  return window.NbaRankerLogic.experienceLabel(player.experience);
 }
 
 function syncSortSelectOptions() {
@@ -500,105 +467,12 @@ function currentFilters() {
   };
 }
 
-function matchesPositionFilter(playerPosition, selectedPosition) {
-  if (!selectedPosition) {
-    return true;
-  }
-
-  if (selectedPosition.includes("-")) {
-    return playerPosition === selectedPosition;
-  }
-
-  return playerPosition.split("-").includes(selectedPosition);
-}
-
 function sortPlayers(players, sortKey) {
-  const sorted = [...players];
-  const byText = (field) => (a, b) => a[field].localeCompare(b[field]);
-
-  const sorters = {
-    "index-asc": (a, b) => a.index - b.index,
-    "personal-rank-asc": comparePersonalRank,
-    "likelihood-desc": (a, b) =>
-      b.activeLikelihood - a.activeLikelihood || a.playerName.localeCompare(b.playerName),
-    "likelihood-asc": (a, b) =>
-      a.activeLikelihood - b.activeLikelihood || a.playerName.localeCompare(b.playerName),
-    "name-asc": byText("playerName"),
-    "name-desc": (a, b) => byText("playerName")(b, a),
-    "team-asc": (a, b) =>
-      displayedTeam(a).localeCompare(displayedTeam(b)) ||
-      a.playerName.localeCompare(b.playerName),
-    "team-desc": (a, b) =>
-      displayedTeam(b).localeCompare(displayedTeam(a)) ||
-      a.playerName.localeCompare(b.playerName),
-    "position-asc": (a, b) =>
-      a.position.localeCompare(b.position) || a.playerName.localeCompare(b.playerName),
-    "position-desc": (a, b) =>
-      b.position.localeCompare(a.position) || a.playerName.localeCompare(b.playerName),
-  };
-
-  return sorted.sort(sorters[sortKey] || sorters["index-asc"]);
-}
-
-function comparePersonalRank(a, b) {
-  const rankA = personalRank(a);
-  const rankB = personalRank(b);
-
-  if (rankA === null && rankB === null) {
-    return a.index - b.index;
-  }
-  if (rankA === null) {
-    return 1;
-  }
-  if (rankB === null) {
-    return -1;
-  }
-
-  return rankA - rankB || a.index - b.index;
-}
-
-function fantasyValue(player, key) {
-  if (key === "index") {
-    return player.index;
-  }
-  if (key === "personalRank") {
-    return personalRank(player);
-  }
-  if (key === "playerName") {
-    return player.playerName;
-  }
-
-  return player.fantasy[key];
-}
-
-function hasFantasyData(player) {
-  return Object.values(player.fantasy).some((value) => Number.isFinite(value));
+  return sortPlayerList(players, sortKey, { displayedTeam, personalRank });
 }
 
 function sortFantasyPlayers(players) {
-  const sorted = [...players];
-  const { key, direction } = state.fantasySort;
-  const multiplier = direction === "asc" ? 1 : -1;
-
-  return sorted.sort((a, b) => {
-    const valueA = fantasyValue(a, key);
-    const valueB = fantasyValue(b, key);
-
-    if (typeof valueA === "string" || typeof valueB === "string") {
-      return String(valueA || "").localeCompare(String(valueB || "")) * multiplier;
-    }
-    if (valueA === null && valueB === null) {
-      return a.index - b.index;
-    }
-    if (valueA === null) {
-      return 1;
-    }
-    if (valueB === null) {
-      return -1;
-    }
-
-    return (valueA - valueB) * multiplier || a.index - b.index;
-  });
+  return sortFantasyPlayerList(players, state.fantasySort, personalRank);
 }
 
 function setFantasySort(key, direction = null) {
@@ -762,21 +636,6 @@ function fantasyRow(player) {
   });
 
   return tr;
-}
-
-function formatFantasyValue(value, type, fillEmptyFantasyStat = false) {
-  if (value === null || value === undefined || value === "") {
-    if (!fillEmptyFantasyStat) {
-      return "";
-    }
-
-    return type === "percent" ? EMPTY_PERCENTAGE_STAT : EMPTY_COUNTING_STAT;
-  }
-  if (type === "percent") {
-    return Number(value).toFixed(3);
-  }
-
-  return String(Math.round(Number(value)));
 }
 
 function renderPlayerHeader() {
@@ -1040,64 +899,20 @@ function scrollResultsToTop() {
   });
 }
 
-function csvValue(value) {
-  const text = String(value ?? "");
-  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
-}
-
 function rankedExportRows() {
-  return state.players
-    .map((player) => ({
-      rank: personalRank(player),
-      name: player.playerName,
-      team: displayedTeam(player),
-      position: player.position,
-    }))
-    .filter((row) => row.rank !== null)
-    .sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
+  return buildRankedExportRows(state.players, { personalRank, displayedTeam });
 }
 
 function rankedExportCsv() {
-  const rows = rankedExportRows();
-  return [
-    EXPORT_FIELDS.join(","),
-    ...rows.map((row) => EXPORT_FIELDS.map((field) => csvValue(row[field])).join(",")),
-  ].join("\r\n");
+  return rowsToCsv(EXPORT_FIELDS, rankedExportRows());
 }
 
 function fullExportRows() {
-  return state.filtered.map((player) => ({
-    rank: personalRank(player) ?? "",
-    index: player.index,
-    name: player.playerName,
-    team: displayedTeam(player),
-    original_team: player.team,
-    position: player.position,
-    nba_player_id: player.playerId,
-    experience: experienceLabel(player),
-    active_likelihood: player.activeLikelihood,
-    fantasy_fg_pct: player.fantasy.fgPct ?? "",
-    fantasy_fgm: player.fantasy.fgm ?? "",
-    fantasy_fga: player.fantasy.fga ?? "",
-    fantasy_ft_pct: player.fantasy.ftPct ?? "",
-    fantasy_ftm: player.fantasy.ftm ?? "",
-    fantasy_fta: player.fantasy.fta ?? "",
-    fantasy_3pm: player.fantasy.fg3m ?? "",
-    fantasy_points: player.fantasy.pts ?? "",
-    fantasy_rebounds: player.fantasy.reb ?? "",
-    fantasy_assists: player.fantasy.ast ?? "",
-    fantasy_steals: player.fantasy.stl ?? "",
-    fantasy_blocks: player.fantasy.blk ?? "",
-    fantasy_turnovers: player.fantasy.tov ?? "",
-  }));
+  return buildFullExportRows(state.filtered, { personalRank, displayedTeam });
 }
 
 function fullExportCsv() {
-  const rows = fullExportRows();
-  return [
-    FULL_EXPORT_FIELDS.join(","),
-    ...rows.map((row) => FULL_EXPORT_FIELDS.map((field) => csvValue(row[field])).join(",")),
-  ].join("\r\n");
+  return rowsToCsv(FULL_EXPORT_FIELDS, fullExportRows());
 }
 
 function fullExportJson() {
@@ -1479,7 +1294,32 @@ function bindEvents() {
     }
 
     updatePersonalRank(input.dataset.playerId, input.value);
+    delete input.dataset.autofilledRank;
     applyFilters();
+  });
+
+  els.body.addEventListener("focusin", (event) => {
+    const input = event.target.closest(".personal-rank-input");
+    if (!input) {
+      return;
+    }
+
+    if (!input.value.trim()) {
+      input.value = String(nextPersonalRank());
+      input.dataset.autofilledRank = "true";
+      updatePersonalRank(input.dataset.playerId, input.value);
+    }
+
+    requestAnimationFrame(() => input.select());
+  });
+
+  els.body.addEventListener("focusout", (event) => {
+    const input = event.target.closest(".personal-rank-input");
+    if (!input || input.dataset.autofilledRank !== "true") {
+      return;
+    }
+
+    delete input.dataset.autofilledRank;
   });
 
   els.body.addEventListener("keydown", (event) => {

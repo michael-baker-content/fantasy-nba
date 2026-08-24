@@ -1,39 +1,7 @@
-function normalizedRankEntries(rankMap) {
-  return Object.entries(rankMap)
-    .map(([playerId, rank]) => [String(playerId), Number(rank)])
-    .filter(([, rank]) => Number.isFinite(rank) && rank > 0)
-    .sort(([idA, rankA], [idB, rankB]) => rankA - rankB || idA.localeCompare(idB));
-}
-
-function normalizePersonalRanks(rankMap) {
-  return Object.fromEntries(
-    normalizedRankEntries(rankMap).map(([playerId], index) => [playerId, index + 1]),
-  );
-}
-
-function updatePersonalRank(rankMap, playerId, value) {
-  const cleaned = String(value).trim();
-  const remainingIds = normalizedRankEntries(rankMap)
-    .map(([rankedPlayerId]) => rankedPlayerId)
-    .filter((rankedPlayerId) => rankedPlayerId !== String(playerId));
-
-  if (!cleaned) {
-    return Object.fromEntries(
-      remainingIds.map((rankedPlayerId, index) => [rankedPlayerId, index + 1]),
-    );
-  }
-
-  const requestedRank = Math.floor(Number(cleaned));
-  if (!Number.isFinite(requestedRank) || requestedRank <= 0) {
-    return normalizePersonalRanks(rankMap);
-  }
-
-  const insertIndex = Math.min(requestedRank, remainingIds.length + 1) - 1;
-  remainingIds.splice(insertIndex, 0, String(playerId));
-  return Object.fromEntries(
-    remainingIds.map((rankedPlayerId, index) => [rankedPlayerId, index + 1]),
-  );
-}
+const {
+  nextPersonalRank,
+  updatePersonalRank,
+} = require("../web/app-logic.js");
 
 function assertEqual(name, actual, expected) {
   const actualJson = JSON.stringify(actual);
@@ -59,5 +27,8 @@ assertEqual("clears and shifts", updatePersonalRank({ A: 1, B: 2, C: 3 }, "B", "
   A: 1,
   C: 2,
 });
+assertEqual("next rank starts at one", nextPersonalRank({}), 1);
+assertEqual("next rank follows current sequence", nextPersonalRank({ A: 1, B: 2, C: 3 }), 4);
+assertEqual("next rank ignores invalid entries", nextPersonalRank({ A: 1, B: 0, C: "nope" }), 2);
 
 console.log("personal rank logic ok");

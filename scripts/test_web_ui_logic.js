@@ -1,56 +1,16 @@
-const EMPTY_COUNTING_STAT = "0";
-const EMPTY_PERCENTAGE_STAT = "—";
+const {
+  formatFantasyValue,
+  matchesPositionFilter,
+  normalizeSearchText,
+  searchablePlayerText,
+  experienceValue,
+} = require("../web/app-logic.js");
+
 const PLAYER_SEARCH_ALIASES = {
   "Nikola Jokic": ["Jokic", "Joker"],
   "Shai Gilgeous-Alexander": ["SGA", "Shai"],
   "Victor Wembanyama": ["Wemby", "Wembanyama"],
 };
-
-function normalizeSearchText(value) {
-  return String(value)
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
-
-function playerSearchAliases(playerName) {
-  return PLAYER_SEARCH_ALIASES[playerName] || [];
-}
-
-function searchablePlayerText(playerName) {
-  return normalizeSearchText([playerName, ...playerSearchAliases(playerName)].join(" "));
-}
-
-function matchesPositionFilter(playerPosition, selectedPosition) {
-  if (!selectedPosition) {
-    return true;
-  }
-
-  if (selectedPosition.includes("-")) {
-    return playerPosition === selectedPosition;
-  }
-
-  return playerPosition.split("-").includes(selectedPosition);
-}
-
-function experienceValue(experience) {
-  return experience.toLowerCase() === "rookie" ? "rookie" : "veteran";
-}
-
-function formatFantasyValue(value, type, fillEmptyFantasyStat = false) {
-  if (value === null || value === undefined || value === "") {
-    if (!fillEmptyFantasyStat) {
-      return "";
-    }
-
-    return type === "percent" ? EMPTY_PERCENTAGE_STAT : EMPTY_COUNTING_STAT;
-  }
-  if (type === "percent") {
-    return Number(value).toFixed(3);
-  }
-
-  return String(Math.round(Number(value)));
-}
 
 function assertEqual(name, actual, expected) {
   if (actual !== expected) {
@@ -67,8 +27,16 @@ assertEqual("Veteran maps to veteran", experienceValue("Veteran"), "veteran");
 assertEqual("missing count with data", formatFantasyValue(null, "number", true), "0");
 assertEqual("missing percent with data", formatFantasyValue(null, "percent", true), "—");
 assertEqual("missing stat without data", formatFantasyValue(null, "number", false), "");
-assertEqual("nickname alias matches", searchablePlayerText("Victor Wembanyama").includes("wemby"), true);
-assertEqual("initial alias matches", searchablePlayerText("Shai Gilgeous-Alexander").includes("sga"), true);
+assertEqual(
+  "nickname alias matches",
+  searchablePlayerText("Victor Wembanyama", PLAYER_SEARCH_ALIASES).includes("wemby"),
+  true,
+);
+assertEqual(
+  "initial alias matches",
+  searchablePlayerText("Shai Gilgeous-Alexander", PLAYER_SEARCH_ALIASES).includes("sga"),
+  true,
+);
 assertEqual("accent-insensitive search", normalizeSearchText("Jokić"), "jokic");
 
 console.log("web ui logic ok");

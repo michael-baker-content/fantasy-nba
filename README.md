@@ -123,7 +123,17 @@ The explorer includes a dark mode switch. The selected theme is saved in browser
 
 The explorer favors native HTML controls and semantic table markup. Labels are explicit, the mobile menu and export menu expose `aria-expanded`, fantasy stat sort headers expose `aria-sort`, export status messages use an `aria-live` region, and focus states use a shared Material-style focus token.
 
-The browser code keeps repeatable UI configuration in small constants, including default filters, column definitions, player search aliases, export fields, and fantasy empty-state display values. Local edits remain isolated behind helper functions so future storage changes can be made without rewriting the table rendering.
+The browser code keeps repeatable UI configuration in small constants, including default filters, column definitions, player search aliases, export fields, and fantasy empty-state display values. Pure browser logic lives in `web/app-logic.js` so rank updates, search matching, sorting, fantasy display, and export row construction can be reused by both the app and the Node test scripts. Local edits remain isolated behind helper functions so future storage changes can be made without rewriting the table rendering.
+
+## Tests
+
+Run the lightweight JavaScript checks with:
+
+```powershell
+node scripts/test_all.js
+```
+
+The tests cover personal rank sequencing, search/position/experience helpers, fantasy empty-state formatting, player/fantasy sorting, and CSV/full export row construction. They do not require network access.
 
 If you already have a current CSV and only need to refresh the web data file, run:
 
