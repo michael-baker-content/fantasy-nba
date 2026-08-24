@@ -16,7 +16,7 @@ WEB_DIR = PROJECT_ROOT / "web"
 OUTPUT_FILE = DATA_DIR / "nba_2026_27_likely_players.csv"
 REVIEW_OUTPUT_FILE = DATA_DIR / "nba_2026_27_likely_players_review.csv"
 WEB_DATA_FILE = WEB_DIR / "players-data.js"
-PREV_LEAGUE_OVERRIDES_FILE = DATA_DIR / "prev_league_overrides.csv"
+EXPERIENCE_OVERRIDES_FILE = DATA_DIR / "experience_overrides.csv"
 LIKELIHOOD_OVERRIDES_FILE = DATA_DIR / "active_likelihood_overrides.csv"
 FREE_AGENTS_FILE = DATA_DIR / "free_agents.csv"
 MIN_FREE_AGENT_GAMES = 10
@@ -28,7 +28,7 @@ OUTPUT_FIELDS = [
     "team_abbreviation",
     "position",
     "player_id",
-    "prev_league",
+    "experience",
     "active_likelihood",
 ]
 
@@ -110,16 +110,20 @@ def read_lookup_csv(path: Path, value_field: str) -> dict[str, str]:
         }
 
 
-def infer_prev_league(player: dict[str, object], overrides: dict[str, str]) -> str:
+def normalize_experience(value: object) -> str:
+    return "Rookie" if str(value or "").strip().lower() == "rookie" else "Veteran"
+
+
+def infer_experience(player: dict[str, object], overrides: dict[str, str]) -> str:
     player_id = str(player["PERSON_ID"])
     if player_id in overrides:
-        return overrides[player_id]
+        return normalize_experience(overrides[player_id])
 
     from_year = str(player.get("FROM_YEAR") or "")
     if from_year == ROOKIE_FROM_YEAR:
-        return "rookie"
+        return "Rookie"
 
-    return "NBA"
+    return "Veteran"
 
 
 def as_float(value: object, default: float = 0) -> float:
@@ -358,7 +362,7 @@ def nba_player_rows(
     league_avg_netrtg: float,
 ) -> list[dict[str, object]]:
     players = fetch_player_index_rows(SEASON)
-    prev_league_overrides = read_lookup_csv(PREV_LEAGUE_OVERRIDES_FILE, "prev_league")
+    experience_overrides = read_lookup_csv(EXPERIENCE_OVERRIDES_FILE, "experience")
     likelihood_overrides = read_lookup_csv(LIKELIHOOD_OVERRIDES_FILE, "active_likelihood")
 
     active_players = [
@@ -383,7 +387,7 @@ def nba_player_rows(
             "team_abbreviation": normalize_team_abbreviation(player["TEAM_ABBREVIATION"]),
             "position": str(player.get("POSITION") or "").strip(),
             "player_id": int(player["PERSON_ID"]),
-            "prev_league": infer_prev_league(player, prev_league_overrides),
+            "experience": infer_experience(player, experience_overrides),
             "active_likelihood": active_likelihood,
             "roster_bucket": (
                 "supplemental" if as_int(player.get("SUPPLEMENTAL_STATUS")) == 1 else "standard"
@@ -435,7 +439,7 @@ def automatic_free_agent_rows(
             "team_abbreviation": "FA",
             "position": str(previous_index.get("POSITION") or "").strip(),
             "player_id": player_id,
-            "prev_league": "NBA",
+            "experience": "Veteran",
             "active_likelihood": clamp_score(score),
             "roster_bucket": "free_agent_auto",
             "likelihood_reason": reason,
@@ -471,7 +475,7 @@ def manual_free_agent_rows() -> list[dict[str, object]]:
                     "team_abbreviation": "FA",
                     "position": (row.get("position") or "").strip(),
                     "player_id": int((row.get("player_id") or "0").strip() or 0),
-                    "prev_league": (row.get("prev_league") or "NBA").strip(),
+                    "experience": normalize_experience(row.get("experience") or "Veteran"),
                     "active_likelihood": clamp_score(
                         as_float(row.get("active_likelihood"), default=0.35)
                     ),
@@ -538,7 +542,7 @@ def write_web_data(rows: list[dict[str, object]]) -> None:
                 "team_abbreviation": indexed_row.get("team_abbreviation", ""),
                 "position": indexed_row.get("position", ""),
                 "player_id": indexed_row.get("player_id", ""),
-                "prev_league": indexed_row.get("prev_league", ""),
+                "experience": indexed_row.get("experience", ""),
                 "active_likelihood": indexed_row.get("active_likelihood", ""),
                 "fantasy_fg_pct": indexed_row.get("fantasy_fg_pct", ""),
                 "fantasy_fgm": indexed_row.get("fantasy_fgm", ""),

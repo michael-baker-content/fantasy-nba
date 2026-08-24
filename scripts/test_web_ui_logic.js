@@ -33,6 +33,10 @@ function matchesPositionFilter(playerPosition, selectedPosition) {
   return playerPosition.split("-").includes(selectedPosition);
 }
 
+function experienceValue(experience) {
+  return experience.toLowerCase() === "rookie" ? "rookie" : "veteran";
+}
+
 function formatFantasyValue(value, type, fillEmptyFantasyStat = false) {
   if (value === null || value === undefined || value === "") {
     if (!fillEmptyFantasyStat) {
@@ -58,6 +62,8 @@ assertEqual("F includes F-C", matchesPositionFilter("F-C", "F"), true);
 assertEqual("F includes G-F", matchesPositionFilter("G-F", "F"), true);
 assertEqual("F-C does not include F", matchesPositionFilter("F", "F-C"), false);
 assertEqual("combo positions stay exact", matchesPositionFilter("F-C", "F-C"), true);
+assertEqual("Rookie maps to rookie", experienceValue("Rookie"), "rookie");
+assertEqual("Veteran maps to veteran", experienceValue("Veteran"), "veteran");
 assertEqual("missing count with data", formatFantasyValue(null, "number", true), "0");
 assertEqual("missing percent with data", formatFantasyValue(null, "percent", true), "—");
 assertEqual("missing stat without data", formatFantasyValue(null, "number", false), "");

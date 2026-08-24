@@ -74,7 +74,7 @@ In this project, the index ranking combines active likelihood, prior-season prod
 Use small CSV override files instead of hardcoding exceptions:
 
 ```text
-data/prev_league_overrides.csv
+data/experience_overrides.csv
 data/active_likelihood_overrides.csv
 data/free_agents.csv
 ```

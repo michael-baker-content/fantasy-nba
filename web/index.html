@@ -20,15 +20,15 @@
         <div class="summary-strip" aria-live="polite">
           <div>
             <span id="visible-count">0</span>
-            <small>shown</small>
+            <small>Shown</small>
           </div>
           <div>
             <span id="total-count">0</span>
-            <small>total</small>
+            <small>Total</small>
           </div>
           <div>
             <span id="average-likelihood">0.00</span>
-            <small>avg likelihood</small>
+            <small>Avg Likelihood</small>
           </div>
         </div>
       </header>
@@ -40,59 +40,61 @@
         aria-controls="mobile-menu"
         aria-expanded="false"
       >
-        <span aria-hidden="true">&#9776;</span>
-        <span>Menu</span>
+        <span class="mobile-menu-icon" aria-hidden="true">&#9776;</span>
+        <span class="mobile-menu-label">Menu</span>
       </button>
 
       <nav class="view-tabs" aria-label="Explorer views">
-        <button class="view-tab is-active" type="button" data-view="players" aria-current="page">Player outlook</button>
-        <button class="view-tab" type="button" data-view="fantasy" aria-current="false">Fantasy totals</button>
+        <button class="view-tab is-active" type="button" data-view="players" aria-current="page">Player Outlook</button>
+        <button class="view-tab" type="button" data-view="fantasy" aria-current="false">Fantasy Totals</button>
       </nav>
 
       <section id="mobile-menu" class="filters" aria-label="Player filters">
         <label class="field search-field">
           <span>Search</span>
-          <input id="search-input" type="search" placeholder="Player name">
+          <input id="search-input" type="search" placeholder="Player Name">
         </label>
 
         <label class="field">
           <span>Team</span>
           <select id="team-filter">
-            <option value="">All teams</option>
+            <option value="">All Teams</option>
           </select>
         </label>
 
         <label class="field">
           <span>Position</span>
           <select id="position-filter">
-            <option value="">All positions</option>
+            <option value="">All Positions</option>
           </select>
         </label>
 
         <label class="field">
-          <span>Previous league</span>
-          <select id="league-filter">
-            <option value="">All leagues</option>
+          <span>Experience</span>
+          <select id="experience-filter">
+            <option value="">Default</option>
+            <option value="veteran">Veteran</option>
+            <option value="rookie">Rookie</option>
           </select>
         </label>
 
         <label class="field">
           <span>Sort</span>
           <select id="sort-select">
-            <option value="index-asc">Index</option>
+            <option value="index-asc">Default</option>
             <option value="personal-rank-asc">Rank</option>
-            <option value="likelihood-desc">Likelihood high to low</option>
-            <option value="likelihood-asc">Likelihood low to high</option>
+            <option value="likelihood-desc">Likelihood High To Low</option>
+            <option value="likelihood-asc">Likelihood Low To High</option>
             <option value="name-asc">Name A to Z</option>
             <option value="team-asc">Team A to Z</option>
             <option value="position-asc">Position A to Z</option>
           </select>
         </label>
 
-        <div class="range-group" aria-label="Minimum likelihood">
+        <div class="range-group" aria-label="Minimum Likelihood">
           <div class="range-header">
             <span>Likelihood</span>
-            <output id="range-output">0.00 and up</output>
+            <output id="range-output">0.00 And Up</output>
           </div>
           <div class="range-controls">
             <label>
@@ -115,26 +117,30 @@
               Export
             </button>
             <div id="export-menu" class="export-options" role="menu" hidden>
-              <button id="export-file-button" type="button" role="menuitem">CSV file</button>
-              <button id="export-copy-button" type="button" role="menuitem">CSV to clipboard</button>
+              <button id="export-file-button" type="button" role="menuitem">CSV File</button>
+              <button id="export-copy-button" type="button" role="menuitem">CSV To Clipboard</button>
+              <button id="export-full-csv-button" type="button" role="menuitem">Full CSV</button>
+              <button id="export-full-xlsx-button" type="button" role="menuitem">Full XLSX</button>
+              <button id="export-full-json-button" type="button" role="menuitem">Full JSON</button>
             </div>
           </div>
           <button id="top-button" class="secondary-button" type="button">Top</button>
           <button id="reset-button" class="secondary-button" type="button">Reset</button>
+          <label class="theme-toggle">
+            <span class="theme-text">Dark Mode</span>
+            <span class="theme-symbols" aria-hidden="true">☀️ / 🌙</span>
+            <input id="theme-toggle" type="checkbox" role="switch" aria-label="Dark Mode">
+            <span class="switch-track" aria-hidden="true">
+              <span class="switch-thumb"></span>
+            </span>
+          </label>
           <span id="export-status" class="sr-only" aria-live="polite"></span>
         </div>
 
-        <label class="theme-toggle">
-          <span>Dark mode</span>
-          <input id="theme-toggle" type="checkbox" role="switch" aria-label="Dark mode">
-          <span class="switch-track" aria-hidden="true">
-            <span class="switch-thumb"></span>
-          </span>
-        </label>
       </section>
 
       <section class="table-section" aria-label="Filtered players">
-        <div id="loading-state" class="status-line">Loading players...</div>
+        <div id="loading-state" class="status-line">Loading Players...</div>
         <div class="table-wrap" hidden>
           <table>
             <thead id="players-head"></thead>
@@ -144,9 +150,21 @@
         <div class="table-scrollbar" aria-label="Scroll table columns" role="region" tabindex="0" hidden>
           <div class="table-scrollbar-inner"></div>
         </div>
-        <div id="empty-state" class="status-line" hidden>No players match those filters.</div>
+        <div id="empty-state" class="status-line" hidden>No Players Match Those Filters.</div>
       </section>
     </main>
+
+    <dialog id="reset-dialog" class="reset-dialog" aria-labelledby="reset-dialog-title">
+      <form method="dialog" class="reset-dialog-card">
+        <h2 id="reset-dialog-title">Reset Options</h2>
+        <p>Reset only the current sort order, or delete saved ranks, team edits, and theme preference from this browser.</p>
+        <div class="reset-dialog-actions">
+          <button id="reset-filters-button" class="secondary-button" type="button">Reset Sorts</button>
+          <button id="delete-saved-data-button" class="secondary-button danger-button" type="button">Delete Saved Data</button>
+          <button class="secondary-button" type="submit">Cancel</button>
+        </div>
+      </form>
+    </dialog>
 
     <script src="players-data.js"></script>
     <script src="app.js"></script>
