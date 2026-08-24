@@ -450,7 +450,7 @@ button:focus-visible {
   height: 32px;
   border: 2px solid var(--muted);
   border-radius: 999px;
-  background: var(--panel-soft);
+  background: var(--utility-button-bg);
   transition: background 140ms ease, border-color 140ms ease;
 }
 
@@ -650,6 +650,7 @@ tbody tr:hover .col-player {
   width: 25ch;
   min-width: 25ch;
   max-width: 25ch;
+  padding-right: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -899,14 +900,17 @@ td {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 5px;
     width: 100%;
     min-height: 38px;
     border: 1px solid var(--line);
     border-radius: 999px;
     background: var(--panel);
     color: var(--text);
+    padding: 0 8px;
+    font-size: 0.82rem;
     font-weight: 700;
+    white-space: nowrap;
     box-shadow: var(--shadow);
   }
 
@@ -1026,7 +1030,7 @@ td {
   .theme-symbols {
     display: inline;
     font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-    font-size: 0.76rem;
+    font-size: 1rem;
     line-height: 1;
     white-space: nowrap;
   }
@@ -1066,7 +1070,7 @@ td {
   }
 
   table {
-    min-width: 1000px;
+    min-width: 900px;
     table-layout: fixed;
   }
 
@@ -1076,9 +1080,9 @@ td {
   }
 
   .table-wrap[data-view="fantasy"] .col-player {
-    width: 25ch;
-    min-width: 25ch;
-    max-width: 25ch;
+    width: 18ch;
+    min-width: 18ch;
+    max-width: 18ch;
   }
 
   thead th {
@@ -1172,39 +1176,53 @@ td {
     width: 78px;
   }
 
-  .col-player {
-    width: 24ch;
+  .table-wrap[data-view="players"] .col-player {
+    width: 21ch;
     min-width: 0;
-    max-width: 24ch;
+    max-width: 21ch;
+    padding-right: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
+  .table-wrap[data-view="fantasy"] .col-player {
+    width: 18ch;
+    min-width: 18ch;
+    max-width: 18ch;
+  }
+
   .col-position {
-    width: 58px;
+    width: 48px;
+    text-align: center;
   }
 
   .col-age {
-    width: 46px;
+    width: 42px;
+    text-align: center;
   }
 
   .col-height {
-    width: 58px;
+    width: 52px;
+    text-align: center;
   }
 
   .col-college {
-    width: 122px;
+    width: 112px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .col-country {
-    width: 82px;
+    width: 78px;
   }
 
   .col-draft {
-    width: 90px;
+    width: 84px;
   }
 
   .col-experience {
-    width: 84px;
+    width: 78px;
   }
 
   .status-line {

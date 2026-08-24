@@ -451,7 +451,6 @@ function updatePersonalRank(playerId, value) {
 
 function seedRanks() {
   closeExportMenu();
-  closeMobileMenu();
 
   const currentCount = personalRankCount();
   const defaultCount = Math.min(state.players.length, currentCount > 0 ? currentCount + 20 : 20);
@@ -608,6 +607,10 @@ function appendTextCell(row, value, className = "") {
   cell.textContent = value ?? "";
   if (className) {
     cell.className = className;
+  }
+  if (className.includes("player-cell") && value) {
+    cell.title = String(value);
+    cell.setAttribute("aria-label", String(value));
   }
   row.append(cell);
 }
@@ -1024,7 +1027,6 @@ function closeMobileMenu() {
 }
 
 function scrollResultsToTop() {
-  closeMobileMenu();
   els.tableWrap.scrollTo({ top: 0, left: 0, behavior: "smooth" });
   els.tableScrollbar.scrollTo({ left: 0, behavior: "smooth" });
   document.querySelector(".table-section").scrollIntoView({
