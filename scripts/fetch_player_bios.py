@@ -6,8 +6,6 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 
-from nba_api.stats.endpoints import commonplayerinfo, playerindex
-
 
 SEASON = "2026-27"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +24,16 @@ BIO_FIELDS = [
     "draft_round",
     "draft_number",
 ]
+PROFILE_REFRESH_FIELDS = [
+    "birthdate",
+    "height",
+    "college",
+    "country",
+    "draft_year",
+    "draft_round",
+    "draft_number",
+]
+UNDRAFTED = "Undrafted"
 
 
 def clean(value: object) -> str:
@@ -57,6 +65,81 @@ def age_from_birthdate(value: str, today: date) -> str:
     return str(age) if age >= 0 else ""
 
 
+def has_player_context(row: dict[str, object]) -> bool:
+    return any(
+        clean(row.get(field))
+        for field in [
+            "birthdate",
+            "BIRTHDATE",
+            "height",
+            "HEIGHT",
+            "college",
+            "COLLEGE",
+            "SCHOOL",
+            "country",
+            "COUNTRY",
+            "PLAYER_NAME",
+            "DISPLAY_FIRST_LAST",
+        ]
+    )
+
+
+def draft_fields(row: dict[str, object]) -> dict[str, str]:
+    year = clean(row.get("DRAFT_YEAR"))
+    round_ = clean(row.get("DRAFT_ROUND"))
+    number = clean(row.get("DRAFT_NUMBER"))
+
+    if year.lower() == UNDRAFTED.lower() or round_.lower() == UNDRAFTED.lower():
+        return {
+            "draft_year": UNDRAFTED,
+            "draft_round": "",
+            "draft_number": "",
+        }
+
+    if not year and has_player_context(row):
+        year = UNDRAFTED
+
+    return {
+        "draft_year": year,
+        "draft_round": round_,
+        "draft_number": number,
+    }
+
+
+def merge_draft_fields(index_info: dict[str, object], common_info: dict[str, object]) -> dict[str, str]:
+    index_draft = draft_fields(index_info)
+    common_draft = draft_fields(common_info)
+    year = index_draft["draft_year"] or common_draft["draft_year"]
+
+    if year.lower() == UNDRAFTED.lower():
+        return {
+            "draft_year": UNDRAFTED,
+            "draft_round": "",
+            "draft_number": "",
+        }
+
+    return {
+        "draft_year": year,
+        "draft_round": index_draft["draft_round"] or common_draft["draft_round"],
+        "draft_number": index_draft["draft_number"] or common_draft["draft_number"],
+    }
+
+
+def has_missing_profile_fields(row: dict[str, str] | None) -> bool:
+    if not row:
+        return True
+
+    for field in PROFILE_REFRESH_FIELDS:
+        value = clean(row.get(field))
+        if value and value != "-":
+            continue
+        if field in ["draft_round", "draft_number"] and clean(row.get("draft_year")).lower() == UNDRAFTED.lower():
+            continue
+        return True
+
+    return False
+
+
 def read_players() -> list[dict[str, str]]:
     with PLAYER_FILE.open(newline="", encoding="utf-8") as file:
         return list(csv.DictReader(file))
@@ -75,6 +158,8 @@ def read_existing_bios() -> dict[str, dict[str, str]]:
 
 
 def read_player_index_bios() -> dict[str, dict[str, object]]:
+    from nba_api.stats.endpoints import playerindex
+
     endpoint = playerindex.PlayerIndex(
         league_id="00",
         season=SEASON,
@@ -86,6 +171,8 @@ def read_player_index_bios() -> dict[str, dict[str, object]]:
 
 
 def fetch_common_info(player_id: str) -> dict[str, object]:
+    from nba_api.stats.endpoints import commonplayerinfo
+
     endpoint = commonplayerinfo.CommonPlayerInfo(player_id=player_id, timeout=60)
     normalized = endpoint.get_normalized_dict()
     rows = normalized.get("CommonPlayerInfo") or []
@@ -103,6 +190,7 @@ def build_bio(
 ) -> dict[str, str]:
     info = index_info or {}
     common = common_info or {}
+    draft = merge_draft_fields(info, common)
     return {
         "player_id": player_id,
         "player_name": api_player_name or clean(info.get("PLAYER_NAME")) or player_name,
@@ -111,9 +199,7 @@ def build_bio(
         "height": clean(info.get("HEIGHT")) or clean(common.get("HEIGHT")),
         "college": clean(info.get("COLLEGE")) or clean(common.get("SCHOOL")),
         "country": clean(info.get("COUNTRY")) or clean(common.get("COUNTRY")),
-        "draft_year": clean(info.get("DRAFT_YEAR")) or clean(common.get("DRAFT_YEAR")),
-        "draft_round": clean(info.get("DRAFT_ROUND")) or clean(common.get("DRAFT_ROUND")),
-        "draft_number": clean(info.get("DRAFT_NUMBER")) or clean(common.get("DRAFT_NUMBER")),
+        **draft,
     }
 
 
@@ -128,9 +214,14 @@ def write_bios(rows: list[dict[str, str]]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fetch cached NBA player bio data.")
     parser.add_argument("--refresh", action="store_true", help="Refetch players already in the cache.")
-    parser.add_argument("--limit", type=int, default=0, help="Fetch birthdates for at most this many uncached rows.")
+    parser.add_argument("--limit", type=int, default=0, help="Fetch profiles for at most this many rows.")
     parser.add_argument("--sleep", type=float, default=0.35, help="Seconds to pause between API calls.")
-    parser.add_argument("--skip-birthdates", action="store_true", help="Only use the season player index fields.")
+    parser.add_argument("--skip-birthdates", action="store_true", help="Only use the season player index fields; do not call individual player profiles.")
+    parser.add_argument(
+        "--only-missing-birthdates",
+        action="store_true",
+        help="Use the older cache behavior: fetch individual profiles only when birthdate is missing.",
+    )
     args = parser.parse_args()
 
     players = read_players()
@@ -153,30 +244,39 @@ def main() -> None:
         index_info = index_bios.get(player_id)
         existing_row = existing.get(player_id)
         existing_birthdate = clean(existing_row.get("birthdate")) if existing_row else ""
-
-        if not args.refresh and player_id in existing:
-            output_by_id[player_id] = (
-                existing_row
-                if not index_info
-                else build_bio(
-                    player_id,
-                    player_name,
-                    today,
-                    index_info,
-                    existing_birthdate,
-                    clean(existing_row.get("player_name")),
-                )
+        cached_bio = (
+            existing_row
+            if not index_info
+            else build_bio(
+                player_id,
+                player_name,
+                today,
+                index_info,
+                existing_birthdate,
+                clean(existing_row.get("player_name")) if existing_row else "",
             )
-            if existing_birthdate or args.skip_birthdates:
-                continue
+        )
 
-        if args.skip_birthdates or (args.limit and fetched >= args.limit):
-            output_by_id[player_id] = existing_row or build_bio(player_id, player_name, today, index_info, existing_birthdate)
+        needs_profile_fetch = (
+            args.refresh
+            or not existing_row
+            or (
+                not args.only_missing_birthdates
+                and has_missing_profile_fields(cached_bio)
+            )
+            or (
+                args.only_missing_birthdates
+                and not existing_birthdate
+            )
+        )
+
+        if args.skip_birthdates or not needs_profile_fetch or (args.limit and fetched >= args.limit):
+            output_by_id[player_id] = cached_bio or build_bio(player_id, player_name, today, index_info, existing_birthdate)
             continue
 
         try:
             common_info = fetch_common_info(player_id)
-            birthdate = iso_birthdate(common_info.get("BIRTHDATE"))
+            birthdate = iso_birthdate(common_info.get("BIRTHDATE")) or existing_birthdate
             api_player_name = clean(common_info.get("DISPLAY_FIRST_LAST"))
             output_by_id[player_id] = build_bio(
                 player_id,
@@ -190,18 +290,7 @@ def main() -> None:
             fetched += 1
             safe_print(f"Fetched {output_by_id[player_id]['player_name']} ({player_id})")
         except Exception as error:
-            output_by_id[player_id] = {
-                "player_id": player_id,
-                "player_name": player_name,
-                "birthdate": "",
-                "age": "",
-                "height": "",
-                "college": "",
-                "country": "",
-                "draft_year": "",
-                "draft_round": "",
-                "draft_number": "",
-            }
+            output_by_id[player_id] = cached_bio or build_bio(player_id, player_name, today, index_info, existing_birthdate)
             safe_print(f"Skipped {player_name} ({player_id}): {error}")
 
         if args.sleep > 0:

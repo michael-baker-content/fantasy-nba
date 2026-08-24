@@ -124,12 +124,14 @@ To refresh the optional Player Info biography cache:
 python scripts/sync_web_data.py
 ```
 
-The bio script fills height, background, country, and draft fields from the season player index, then fetches birthdate and age from individual player profiles. NBA.com/stats can be touchy, so smaller batches are often more reliable:
+The bio script fills height, background, country, and draft fields from the season player index, then fetches birthdate and other missing profile fields from individual player profiles. It also normalizes otherwise-filled undrafted player rows to show `Undrafted` instead of a blank draft value. NBA.com/stats can be touchy, so smaller batches are often more reliable:
 
 ```powershell
 .\.venv\Scripts\python scripts/fetch_player_bios.py --limit 25 --sleep 0.5
 python scripts/sync_web_data.py
 ```
+
+By default, cached rows with missing useful bio fields can be revisited. Add `--only-missing-birthdates` if you want the older behavior of fetching individual profiles only when birthdate is blank.
 
 ## Manual Inputs
 

@@ -52,7 +52,7 @@ When a public API is flaky or slow:
 
 For this project, `nba_api` is the data client, while `scripts/sync_web_data.py` can refresh `web/players-data.js` from the local CSV without touching the network.
 
-When a detail endpoint is slower than the main list endpoint, cache it separately. In this project, `scripts/fetch_player_bios.py` writes `data/player_bios.csv`: most bio fields come from the season player index, while birthdate and age are fetched from individual profile endpoints and can be filled progressively with `--limit`.
+When a detail endpoint is slower than the main list endpoint, cache it separately. In this project, `scripts/fetch_player_bios.py` writes `data/player_bios.csv`: most bio fields come from the season player index, while birthdate and still-missing profile fields are fetched from individual profile endpoints and can be filled progressively with `--limit`.
 
 ## Scoring and Ranking
 
@@ -69,6 +69,7 @@ Useful ranking safeguards:
 - Mark unsigned or unavailable-team players with `NA` (`Not Available`) and discount them because they still need a roster path.
 - Cap or dampen developmental/supplemental players.
 - Use manual overrides for news, injuries, and context that raw stats cannot know.
+- Preserve cached enrichment data when an API request fails so a partial refresh does not wipe known values.
 
 In this project, the index ranking combines hidden active likelihood, prior-season production, Net Rating compared with league average, and a playing-time sample weight. The likelihood value remains in the pipeline for future refinement but is intentionally hidden from the site until it is more trustworthy.
 

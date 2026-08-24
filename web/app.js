@@ -237,6 +237,7 @@ let syncingTableScroll = false;
 let lastRenderedScrollTop = 0;
 let statusDismissTimer = null;
 let lastPlayerDetailTrigger = null;
+let ignoreNextPlayerDetailClick = false;
 const tableDrag = {
   active: false,
   dragging: false,
@@ -1622,6 +1623,9 @@ function bindEvents() {
     if (!event.target.closest(".export-menu")) {
       closeExportMenu();
     }
+    if (ignoreNextPlayerDetailClick && !event.target.closest(".player-detail-button")) {
+      ignoreNextPlayerDetailClick = false;
+    }
   });
   document.addEventListener("input", scheduleStatusDismiss);
   document.addEventListener("keydown", scheduleStatusDismiss);
@@ -1647,6 +1651,11 @@ function bindEvents() {
   els.body.addEventListener("click", (event) => {
     const button = event.target.closest(".player-detail-button");
     if (!button) {
+      return;
+    }
+
+    if (ignoreNextPlayerDetailClick) {
+      ignoreNextPlayerDetailClick = false;
       return;
     }
 
@@ -1741,6 +1750,7 @@ function bindEvents() {
       return;
     }
 
+    ignoreNextPlayerDetailClick = true;
     delete input.dataset.autofilledRank;
   });
 
