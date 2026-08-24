@@ -18,10 +18,10 @@ A lazy but useful workflow is even shorter: click `Seed`, enter the number of pl
 
 The `Export` menu includes:
 
-- `CSV File`: exports only ranked players with `rank`, `name`, `team`, and `position`.
-- `CSV To Clipboard`: copies that same simple ranked list.
-- `Index CSV`: exports ranked players as `index`, `player_name`, and `player_id`, suitable for saving as `data/index_overrides.csv`.
-- `Full CSV`, `Full XLSX`, and `Full JSON`: export the current filtered and sorted result set with the extra player, team, fantasy, and identity fields available in the app.
+- `CSV File (Yahoo!)`: exports only ranked players with `rank`, `name`, `team`, and `position`.
+- `CSV To Clipboard (Yahoo!)`: copies that same simple ranked list.
+- `CSV File (Complete)`, `XLSX File (Complete)`, and `JSON File (Complete)`: export the current filtered and sorted result set with the extra player, team, fantasy, and identity fields available in the app.
+- `New Site Index Data`: exports ranked players as `index`, `player_name`, and `player_id`, suitable for saving as `data/index_overrides.csv`.
 
 Use `Reset` when you want to turn back the clock. `Reset Sorts` returns the sort order to the default for the current view. `Delete Saved Data` removes saved ranks, team edits, and theme preference from this browser.
 
@@ -140,7 +140,7 @@ Four optional CSV files live in `data/`:
 - `experience_overrides.csv`: force a player's Experience value to `Veteran` or `Rookie`.
 - `active_likelihood_overrides.csv`: override the hidden likelihood score when news, injuries, or roster context matter.
 - `free_agents.csv`: include additional unsigned players who are still plausible NBA players. Use `NA` (`Not Available`) for players whose team is not available.
-- `index_overrides.csv`: reorder the generated index from a browser `Index CSV` export. Listed players are moved to the top in exported order; skipped players keep the generator's current order after those listed players.
+- `index_overrides.csv`: reorder the generated index from a browser `New Site Index Data` export. Listed players are moved to the top in exported order; skipped players keep the generator's current order after those listed players.
 
 The script also automatically adds free-agent candidates when a player appeared in the previous season's NBA stats feed, is not on the upcoming-season roster feed, and clears a modest recent-playing-time threshold.
 
@@ -152,7 +152,7 @@ The `index` field is assigned after sorting by an internal ranking score. The sc
 
 The Net Rating adjustment is weighted by playing-time sample so small-minute outliers have less influence. The review CSV includes `index_score`, `previous_netrtg`, `netrtg_delta`, and `netrtg_sample_weight` for auditing.
 
-To make a personal ranking become the next generated default index, rank players in the browser, choose `Export` -> `Index CSV`, and save that file as:
+To make a personal ranking become the next generated default index, rank players in the browser, choose `Export` -> `New Site Index Data`, and save that file as:
 
 ```text
 data/index_overrides.csv
