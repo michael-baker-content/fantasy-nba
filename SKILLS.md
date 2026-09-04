@@ -92,7 +92,7 @@ Design overrides so they are easy to edit by hand:
 
 Keep enrichment caches separate from manual override files. A cache like `data/player_bios.csv` should be regenerable from source data and safe to refresh, while override files should represent intentional human judgment.
 
-If the UI can create an override file, keep that export narrow and generator-friendly. In this project, the browser `Index CSV` export writes `index`, `player_name`, and `player_id` so the next data generation can apply a curated order while skipped players keep their generated order.
+If the UI can create an override file, keep that export narrow and generator-friendly. In this project, the browser `New Site Index Data` export writes `index`, `player_name`, and `player_id` so the next data generation can apply a curated order while skipped players keep their generated order.
 
 ## Web Explorer Pattern
 

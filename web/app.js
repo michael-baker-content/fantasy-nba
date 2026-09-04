@@ -158,6 +158,7 @@ const els = {
   position: document.querySelector("#position-filter"),
   experience: document.querySelector("#experience-filter"),
   sort: document.querySelector("#sort-select"),
+  rankRefresh: document.querySelector("#rank-refresh-button"),
   reset: document.querySelector("#reset-button"),
   seed: document.querySelector("#seed-button"),
   export: document.querySelector("#export-button"),
@@ -595,6 +596,14 @@ function setFantasySort(key, direction = null) {
 function setFantasySortFromValue(value) {
   const [key, direction] = value.split(":");
   setFantasySort(key, direction === "asc" ? "asc" : "desc");
+}
+
+function isRankSortSelected() {
+  return els.sort.value === "personal-rank-asc" || els.sort.value.startsWith("personalRank:");
+}
+
+function updateRankRefreshVisibility() {
+  els.rankRefresh.hidden = !isRankSortSelected();
 }
 
 function isMobileViewport() {
@@ -1053,6 +1062,7 @@ function endTableDrag(event) {
 function applyFilters(options = {}) {
   filterPlayers();
   renderSummary();
+  updateRankRefreshVisibility();
   renderTable(options);
 }
 
@@ -1478,7 +1488,7 @@ function downloadBytesFile(bytes, fileName, type) {
 
 function downloadRankedCsv() {
   downloadTextFile(rankedExportCsv(), EXPORT_FILE_NAME, "text/csv;charset=utf-8");
-  setExportStatus("CSV File Exported.");
+  setExportStatus("CSV File (Yahoo!) Exported.");
   closeExportMenu();
 }
 
@@ -1488,13 +1498,13 @@ function downloadIndexOverrideCsv() {
     INDEX_OVERRIDE_EXPORT_FILE_NAME,
     "text/csv;charset=utf-8",
   );
-  setExportStatus("Index CSV Exported.");
+  setExportStatus("New Site Index Data Exported.");
   closeExportMenu();
 }
 
 function downloadFullCsv() {
   downloadTextFile(fullExportCsv(), FULL_CSV_EXPORT_FILE_NAME, "text/csv;charset=utf-8");
-  setExportStatus("Full CSV Exported.");
+  setExportStatus("CSV File (Complete) Exported.");
   closeExportMenu();
 }
 
@@ -1504,13 +1514,13 @@ function downloadFullXlsx() {
     FULL_XLSX_EXPORT_FILE_NAME,
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   );
-  setExportStatus("Full XLSX Exported.");
+  setExportStatus("XLSX File (Complete) Exported.");
   closeExportMenu();
 }
 
 function downloadFullJson() {
   downloadTextFile(fullExportJson(), FULL_JSON_EXPORT_FILE_NAME, "application/json;charset=utf-8");
-  setExportStatus("Full JSON Exported.");
+  setExportStatus("JSON File (Complete) Exported.");
   closeExportMenu();
 }
 
@@ -1539,7 +1549,7 @@ async function copyRankedCsvToClipboard() {
     } else {
       copyTextFallback(csv);
     }
-    setExportStatus("CSV Copied To Clipboard.");
+    setExportStatus("CSV To Clipboard (Yahoo!) Copied.");
   } catch {
     setExportStatus("CSV could not be copied.");
   } finally {
@@ -1564,6 +1574,9 @@ function bindEvents() {
   els.resetFilters.addEventListener("click", () => {
     resetSorts();
     closeResetDialog();
+  });
+  els.rankRefresh.addEventListener("click", () => {
+    applyFilters({ preserveScroll: true });
   });
   els.deleteSavedData.addEventListener("click", deleteSavedAppData);
   els.seed.addEventListener("click", seedRanks);

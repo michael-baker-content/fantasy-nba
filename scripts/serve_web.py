@@ -27,7 +27,10 @@ def main() -> None:
     )
     with ReusableThreadingHTTPServer(("127.0.0.1", PORT), handler) as server:
         print(f"Serving http://127.0.0.1:{PORT}/web/")
-        server.serve_forever()
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print("\nServer stopped.")
 
 
 if __name__ == "__main__":

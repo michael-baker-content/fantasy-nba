@@ -23,7 +23,7 @@ The `Export` menu includes:
 - `CSV File (Complete)`, `XLSX File (Complete)`, and `JSON File (Complete)`: export the current filtered and sorted result set with the extra player, team, fantasy, and identity fields available in the app.
 - `New Site Index Data`: exports ranked players as `index`, `player_name`, and `player_id`, suitable for saving as `data/index_overrides.csv`.
 
-Use `Reset` when you want to turn back the clock. `Reset Sorts` returns the sort order to the default for the current view. `Delete Saved Data` removes saved ranks, team edits, and theme preference from this browser.
+Use `Reset` when you want to turn back the clock. `Reset Sorts` returns the sort order to the default for the current view. When `Rank` sort is active, `Refresh Sort` re-runs the current rank ordering after edits. `Delete Saved Data` removes saved ranks, team edits, and theme preference from this browser.
 
 The app has two views:
 
